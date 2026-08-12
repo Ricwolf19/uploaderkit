@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { MB } from './constants'
 import { formatFileSize, getFileExtension, getMimeType } from './file'
 import type { FileLike } from './types'

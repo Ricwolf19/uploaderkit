@@ -1,6 +1,5 @@
 import { FILE_CATEGORY_CONFIG } from './constants'
 import { toAcceptAttribute } from './file'
-import { validateFile } from './validation'
 import type {
 	FileLike,
 	ScopeConfig,
@@ -8,6 +7,7 @@ import type {
 	StorageProvider,
 	ValidationResult,
 } from './types'
+import { validateFile } from './validation'
 
 /** Thrown for a definition or wiring mistake — never for a user's bad file. */
 export class ScopeError extends Error {

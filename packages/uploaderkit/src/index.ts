@@ -16,7 +16,6 @@ export {
 	MB,
 	MIME_TYPES,
 } from './constants'
-
 export {
 	formatFileSize,
 	fromMulterFile,
@@ -25,7 +24,6 @@ export {
 	isKnownExtension,
 	toAcceptAttribute,
 } from './file'
-
 export {
 	assertProviderSupports,
 	defineScopes,
@@ -33,16 +31,6 @@ export {
 	ScopeError,
 	validateForScope,
 } from './scopes'
-
-export {
-	validateExtension,
-	validateFile,
-	validateFiles,
-	validateMagicNumbers,
-	validateSize,
-	type FileValidation,
-} from './validation'
-
 export type {
 	AudioExtension,
 	CertificateExtension,
@@ -70,3 +58,11 @@ export type {
 	VideoExtension,
 	Visibility,
 } from './types'
+export {
+	type FileValidation,
+	validateExtension,
+	validateFile,
+	validateFiles,
+	validateMagicNumbers,
+	validateSize,
+} from './validation'
