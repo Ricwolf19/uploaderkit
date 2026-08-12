@@ -1,0 +1,82 @@
+{
+	"name": "uploaderkit",
+	"version": "0.0.0",
+	"description": "One upload contract for every storage provider — scope registry, isomorphic validation, headless React and a server router.",
+	"keywords": [
+		"upload",
+		"file-upload",
+		"dropzone",
+		"storage",
+		"s3",
+		"gcs",
+		"r2",
+		"react",
+		"express",
+		"nextjs"
+	],
+	"license": "MIT",
+	"author": "Ricardo Tapia <rhtc19@gmail.com>",
+	"engines": {
+		"node": ">=18"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Ricwolf19/uploaderkit.git",
+		"directory": "packages/uploaderkit"
+	},
+	"homepage": "https://github.com/Ricwolf19/uploaderkit#readme",
+	"bugs": {
+		"url": "https://github.com/Ricwolf19/uploaderkit/issues"
+	},
+	"type": "module",
+	"sideEffects": false,
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE",
+		"NOTICE"
+	],
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": {
+				"types": "./dist/index.d.ts",
+				"default": "./dist/index.js"
+			},
+			"require": {
+				"types": "./dist/index.d.cts",
+				"default": "./dist/index.cjs"
+			}
+		},
+		"./package.json": "./package.json"
+	},
+	"scripts": {
+		"build": "tsup",
+		"dev": "tsup --watch",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"clean": "rm -rf dist",
+		"size": "size-limit",
+		"size:why": "size-limit --why",
+		"check:publish": "publint",
+		"docs": "typedoc"
+	},
+	"size-limit": [
+		{
+			"name": "core (index)",
+			"path": "dist/index.js",
+			"limit": "6 kB"
+		}
+	],
+	"devDependencies": {
+		"tsup": "^8.5.0",
+		"typescript": "^5.9.3",
+		"vitest": "^3.2.4"
+	}
+}

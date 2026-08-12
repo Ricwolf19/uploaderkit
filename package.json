@@ -1,0 +1,61 @@
+{
+	"name": "uploaderkit-monorepo",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Monorepo root for uploaderkit",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Ricwolf19/uploaderkit.git"
+	},
+	"license": "MIT",
+	"author": "Ricardo Tapia <rhtc19@gmail.com>",
+	"packageManager": "pnpm@11.5.2",
+	"engines": {
+		"node": ">=22"
+	},
+	"scripts": {
+		"build": "pnpm --filter uploaderkit build",
+		"build:all": "pnpm -r build",
+		"dev": "pnpm --filter uploaderkit dev",
+		"docs": "pnpm --filter uploaderkit run docs",
+		"lint": "eslint .",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"typecheck": "pnpm -r typecheck",
+		"test": "pnpm -r test",
+		"knip": "knip",
+		"knip:fix": "knip --fix",
+		"depcruise": "depcruise --config .dependency-cruiser.cjs packages/uploaderkit/src",
+		"depcruise:graph": "depcruise --config .dependency-cruiser.cjs --output-type dot packages/uploaderkit/src | dot -T svg > dependency-graph.svg",
+		"verify": "pnpm lint && pnpm build && pnpm typecheck && pnpm test",
+		"verify:ci": "pnpm lint && pnpm exec secretlint --secretlintignore .gitignore \"**/*\" && pnpm build && pnpm typecheck && pnpm test && pnpm knip && pnpm depcruise && pnpm --filter uploaderkit size && pnpm --filter uploaderkit check:publish",
+		"fix": "pnpm format && pnpm lint --fix && pnpm knip:fix",
+		"prepare": "husky && chmod +x .husky/pre-commit .husky/pre-push .husky/commit-msg 2>/dev/null || true"
+	},
+	"devDependencies": {
+		"@commitlint/cli": "^21.0.1",
+		"@commitlint/config-conventional": "^21.0.1",
+		"@eslint/js": "^9.39.4",
+		"@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
+		"@size-limit/preset-small-lib": "^12.1.0",
+		"dependency-cruiser": "^17.4.2",
+		"eslint": "^9.39.4",
+		"eslint-config-prettier": "^9.1.2",
+		"eslint-plugin-jsdoc": "^63.0.1",
+		"eslint-plugin-react": "^7.37.5",
+		"eslint-plugin-react-hooks": "^5.2.0",
+		"eslint-plugin-simple-import-sort": "^13.0.0",
+		"globals": "^17.6.0",
+		"husky": "^9.1.7",
+		"knip": "^6.14.2",
+		"lint-staged": "^17.0.5",
+		"prettier": "^3.8.3",
+		"prettier-plugin-tailwindcss": "^0.8.0",
+		"publint": "^0.3.21",
+		"secretlint": "^13.0.2",
+		"size-limit": "^12.1.0",
+		"typedoc": "^0.28.19",
+		"typescript": "^5.9.3",
+		"typescript-eslint": "^8.60.0"
+	}
+}

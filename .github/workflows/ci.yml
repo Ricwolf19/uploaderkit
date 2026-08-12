@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint, typecheck, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-repo
+        with:
+          cache: true
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Secrets scan
+        run: pnpm exec secretlint --secretlintignore .gitignore "**/*"
+
+      - name: Build package
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Tests
+        run: pnpm test
+
+      - name: Unused code / deps (knip)
+        run: pnpm knip
+
+      - name: Architecture / circular deps (dependency-cruiser)
+        run: pnpm depcruise
+
+      - name: Bundle size budget
+        run: pnpm --filter uploaderkit size
+
+      - name: Package publishability (publint)
+        run: pnpm --filter uploaderkit check:publish

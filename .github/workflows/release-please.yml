@@ -1,0 +1,65 @@
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    name: Release PR / tag
+    runs-on: ubuntu-latest
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+    steps:
+      # Opens/updates a "release" PR that bumps the version and writes the
+      # CHANGELOG from conventional commits. Merging that PR tags the commit
+      # and creates the GitHub Release; only then does `releases_created` flip
+      # to true and the publish job below runs.
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish:
+    name: Publish to npm
+    needs: release-please
+    if: ${{ needs.release-please.outputs.releases_created == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required for `--provenance`: npm exchanges this OIDC token for a signed
+      # attestation linking the tarball to this workflow run.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-repo
+        with:
+          cache: false
+
+      - name: Build
+        run: pnpm build:all
+
+      - name: Publish
+        run: |
+          VERSION=$(jq -r '.version' packages/uploaderkit/package.json)
+          if npm view uploaderkit@"$VERSION" version > /dev/null 2>&1; then
+            echo "Version $VERSION already published. Skipping publish."
+          else
+            cd packages/uploaderkit && npm publish --access public --provenance
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org
