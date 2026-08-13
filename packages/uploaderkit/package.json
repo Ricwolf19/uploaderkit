@@ -1,6 +1,6 @@
 {
 	"name": "uploaderkit",
-	"version": "0.0.0",
+	"version": "1.0.0",
 	"description": "One upload contract for every storage provider — scope registry, isomorphic validation, headless React and a server router.",
 	"keywords": [
 		"upload",
