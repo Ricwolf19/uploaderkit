@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   quality:
-    name: Lint, typecheck, build
+    name: Verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,29 +21,8 @@ jobs:
         with:
           cache: true
 
-      - name: Lint
-        run: pnpm lint
-
-      - name: Secrets scan
-        run: pnpm exec secretlint --secretlintignore .gitignore "**/*"
-
-      - name: Build package
-        run: pnpm build
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Tests
-        run: pnpm test
-
-      - name: Unused code / deps (knip)
-        run: pnpm knip
-
-      - name: Architecture / circular deps (dependency-cruiser)
-        run: pnpm depcruise
-
-      - name: Bundle size budget
-        run: pnpm --filter uploaderkit size
-
-      - name: Package publishability (publint)
-        run: pnpm --filter uploaderkit check:publish
+      # One step on purpose: `verify:ci` is the single definition of what green
+      # means, and .husky/pre-push runs the very same script. Spelling the
+      # checks out again here is how CI and the hook drift apart.
+      - name: Verify
+        run: pnpm verify:ci
