@@ -49,17 +49,22 @@ jobs:
         with:
           cache: false
 
+      # Trusted publishing needs npm >= 11.5.1; Node 22 still bundles npm 10.
+      # Without this the CLI silently falls back to token auth and fails.
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
       - name: Build
         run: pnpm build:all
 
+      # No NODE_AUTH_TOKEN on purpose: the trusted publisher configured on
+      # npmjs authenticates this workflow through OIDC, and provenance is
+      # attached automatically.
       - name: Publish
         run: |
           VERSION=$(jq -r '.version' packages/uploaderkit/package.json)
           if npm view uploaderkit@"$VERSION" version > /dev/null 2>&1; then
             echo "Version $VERSION already published. Skipping publish."
           else
-            cd packages/uploaderkit && npm publish --access public --provenance
+            cd packages/uploaderkit && npm publish --access public
           fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_REGISTRY: https://registry.npmjs.org
