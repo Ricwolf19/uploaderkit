@@ -1,8 +1,8 @@
 {
-	"name": "uploaderkit-monorepo",
+	"name": "uploaderkit-workspace",
 	"version": "0.0.0",
 	"private": true,
-	"description": "Monorepo root for uploaderkit",
+	"description": "Workspace root for uploaderkit",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/Ricwolf19/uploaderkit.git"
