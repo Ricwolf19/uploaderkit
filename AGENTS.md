@@ -58,11 +58,11 @@ consumers get a path that resolves in the bundler and fails in Node.
 | Subpath                                                       | Status      | Contents                                        | May import              |
 | ------------------------------------------------------------- | ----------- | ----------------------------------------------- | ----------------------- |
 | `.`                                                           | **shipped** | types, presets, validation, scope registry      | nothing                 |
-| `./react`                                                     | planned 0.2 | `useUploader`, `useSlots`, abort/progress state | react (peer)            |
-| `./server`                                                    | planned 0.3 | Fetch-API handler, scope authorization          | core only               |
-| `./server/express` · `./server/next`                          | planned 0.3 | framework adapters                              | the handler             |
-| `./adapters/gcs` · `./adapters/s3` · `./adapters/uploadthing` | planned 0.3 | `StorageProvider` implementations               | its SDK (optional peer) |
-| `./ui`                                                        | planned 0.4 | styled dropzone + slotted uploader              | react, its CSS          |
+| `./react`                                                     | planned 1.1 | `useUploader`, `useSlots`, abort/progress state | react (peer)            |
+| `./server`                                                    | planned 1.2 | Fetch-API handler, scope authorization          | core only               |
+| `./server/express` · `./server/next`                          | planned 1.2 | framework adapters                              | the handler             |
+| `./adapters/gcs` · `./adapters/s3` · `./adapters/uploadthing` | planned 1.2 | `StorageProvider` implementations               | its SDK (optional peer) |
+| `./ui`                                                        | planned 1.3 | styled dropzone + slotted uploader              | react, its CSS          |
 
 ## 5. Load-bearing patterns (file → rule)
 

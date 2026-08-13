@@ -67,11 +67,11 @@ builtins, no provider SDK.
 
 | Version | Adds                                                                    |
 | ------- | ----------------------------------------------------------------------- |
-| 0.2     | `uploaderkit/react` — headless `useUploader`, abort, progress, previews |
-| 0.3     | `uploaderkit/server` — Fetch-API handler with Express and Next adapters |
-| 0.3     | `uploaderkit/adapters/gcs` and `/s3` (covers S3, R2, B2, MinIO, Wasabi) |
-| 0.4     | `uploaderkit/ui` — styled dropzone and slotted uploader, opt-in         |
-| 1.1     | Client compression + EXIF stripping, checksum dedupe, resumable uploads |
+| 1.1     | `uploaderkit/react` — headless `useUploader`, abort, progress, previews |
+| 1.2     | `uploaderkit/server` — Fetch-API handler with Express and Next adapters |
+| 1.2     | `uploaderkit/adapters/gcs` and `/s3` (covers S3, R2, B2, MinIO, Wasabi) |
+| 1.3     | `uploaderkit/ui` — styled dropzone and slotted uploader, opt-in         |
+| 1.4     | Client compression + EXIF stripping, checksum dedupe, resumable uploads |
 
 ## License
 
