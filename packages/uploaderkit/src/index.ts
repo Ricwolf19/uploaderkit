@@ -25,6 +25,12 @@ export {
 	toAcceptAttribute,
 } from './file'
 export {
+	DEFAULT_LABELS,
+	EN_LABELS,
+	resolveLabels,
+	type UploaderLabels,
+} from './labels'
+export {
 	assertProviderSupports,
 	defineScopes,
 	resolveKey,
