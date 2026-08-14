@@ -1,145 +1,183 @@
 # AGENTS.md — uploaderkit
 
 > Operating guide for any AI agent or contributor. Source of truth for **how to
-> work here** and the **invariants that must not break**. Public API behavior
-> lives in the README — this file stays token-minimal.
+> work here** and the **invariants that must not break**.
 
 ## 1. What this is
 
-A published npm package (`uploaderkit`, MIT) that owns the contract between an
-app and its file storage: one scope registry, validation that runs identically
-on both sides of the wire, a headless React layer, a server router, and one
-adapter per storage provider.
+One npm package, `uploaderkit`: an isomorphic core (scope registry,
+validation, provider contract) plus the feature surface behind subpaths — the
+headless React uploader, the server storage service, framework adapters,
+storage providers and an opt-in styled layer.
 
-Stack: TypeScript 5.9 · tsup (dual ESM/CJS) · vitest · pnpm workspaces ·
-release-please. Node >= 22 to develop, >= 18 to consume.
+The core modules (`index`, `constants`, `file`, `scopes`, `types`,
+`validation`, `labels`, `warn`) stay **zero-dependency and isomorphic** — no
+React, no Node builtins, no provider SDK. depcruise enforces it.
 
-Distribution: this repo is the **single source**. It publishes `uploaderkit` to
-npmjs. The company layer (`@pibytelabs/uploaderkit`) lives in a separate repo
-that **depends on this package** and only adds its own scopes and theming — it
-never forks this code. See §7.
+Consumer docs are `packages/uploaderkit/README.md` (English) and `README.es.md`
+(Spanish). The root `README.md` is the product landing plus monorepo setup.
 
-## 2. How to work in this repo
+## 2. Entry points
 
-- **Read before you write.** Confirm behavior in source + tests.
-- **Smallest viable change.** No new docs/dirs unless asked.
-- **Every export is a public API decision.** Adding one is a minor release and a
-  permanent maintenance obligation; removing one is a major. Say so in the PR.
-- **Verify before claiming done**: `pnpm verify` (lint + build + typecheck +
-  test). CI runs `pnpm verify:ci`, which adds secretlint, knip, dependency-
-  cruiser, size-limit and publint. Never report green without running it.
-- **Respect the invariants in §6** — breaking one is a major change, flag it.
-- **Conventional Commits** (`feat:`, `fix(scopes):`, `chore:`). release-please
-  derives the version and the CHANGELOG from them, so a sloppy message ships a
-  wrong version number.
+One tsup entry per subpath. Adding one means touching **three** places —
+`tsup.config.ts`, `exports` + `typesVersions` in `package.json`, and this
+table — or the path resolves in the bundler and fails in Node.
 
-## 3. Repository layout
+| Subpath             | Contents                                                          | May import                   |
+| ------------------- | ----------------------------------------------------------------- | ---------------------------- |
+| `.`                 | the isomorphic core + `UploaderLabels`/`EN_LABELS`                | nothing (see §1)             |
+| `./react`           | `useUploader`, `useSlottedUploader`, strategy, compression        | react (peer), core           |
+| `./server`          | `createStorage`, `createAesGcmCrypto`, `StorageRequestError`      | core + `node:crypto`         |
+| `./server/express`  | handlers for an Express app that owns multer (incl. `view`)       | `./server`                   |
+| `./server/next`     | App Router handlers, Fetch API (incl. `view`)                     | `./server`                   |
+| `./adapters/memory` | in-memory provider for tests and local dev                        | core only                    |
+| `./adapters/gcs`    | two-bucket GCS provider (public + private, signed URLs)           | @google-cloud/storage (peer) |
+| `./adapters/s3`     | S3-compatible provider (AWS, R2, B2, MinIO, Wasabi)               | @aws-sdk/\* (peers)          |
+| `./ui`              | styled uploaders, `FileViewer` + `useFileViewer`, `ConfirmDialog` | react(-dom), ui-* tokens     |
+| `./tailwind.css`    | Tailwind v4 `@source` registration for the /ui classes            | —                            |
 
-```
-uploaderkit/
-├── packages/uploaderkit/    # the published package
-│   ├── src/
-│   │   ├── index.ts         # core barrel — isomorphic, zero deps
-│   │   ├── types.ts         # every contract type
-│   │   ├── constants.ts     # magic numbers, MIME map, category presets
-│   │   ├── file.ts          # extension/MIME/size helpers, FileLike adapters
-│   │   ├── validation.ts    # extension · size · magic number · custom
-│   │   └── scopes.ts        # defineScopes, validateForScope, capability guard
-│   └── tsup.config.ts       # entry points → subpath exports
-└── .github/workflows/       # ci.yml (PRs) · release-please.yml (main)
-```
+## 3. Load-bearing patterns (file → rule)
 
-## 4. Entry points
+- **The viewer is part of the kit** — `ui/FileViewer.tsx`. Images and PDFs
+  preview in a full-screen modal (esc/backdrop close, scroll lock); other
+  formats offer a download. `resolveViewUrl` lets private scopes re-sign an
+  expired URL right before rendering. Both uploaders embed it; it is also
+  exported standalone.
+- **The hook owns state, the strategy owns transport** — `react/types.ts`.
+  `UploadStrategy` receives `(file, scope, entityId, { onProgress, signal })`
+  and must reject with an `AbortError`-named error on abort; the hook maps that
+  to `idle`, not `error`. Swapping endpoint/auth/protocol never touches state.
+- **Validation runs twice on purpose** — `useUploader` for feedback before any
+  byte leaves; `createStorage.upload` re-runs the same `validateForScope` for
+  safety. The client check is advisory, the server one is load-bearing.
+- **Boot-time guards** — `createStorage` throws `ScopeError` at construction
+  when a scope declares `encrypt` without injected `CryptoHooks`, or when a
+  private scope rides a provider that cannot sign. Deploys fail loudly instead
+  of 500ing on the first upload.
+- **Two error families** — `StorageRequestError` carries an HTTP status and a
+  Spanish user-safe message; `ScopeError` is a wiring bug, English, and the
+  framework adapters rethrow it instead of serializing it to the client.
+- **Encrypted objects are stored as `application/octet-stream`** so nothing
+  ever tries to render ciphertext; `read()` decrypts on the way out.
+- **Compression is canvas re-encode** — `react/compressImage.ts`. Downscale +
+  quality per the scope's `compress`; EXIF (GPS, camera) is dropped as an
+  inherent side effect. Falls back to the original file whenever it cannot
+  help; never fails an upload.
+- **XHR, not fetch, for uploads** — `react/strategy.ts`. `fetch` still has no
+  usable upload progress in browsers.
+- **One machine, two presentations** — `react/useSlottedUploader.ts` wraps
+  `useUploader` verbatim: it only decides _which slot_ a file fills and renames
+  it to `{slot}.{ext}` so the scope's `path` yields a stable, overwriting key.
+  Validation, compression, progress and abort are never reimplemented; a fix in
+  the machine reaches `Uploader` and `SlottedUploader` alike.
+- **Slot uploads are controlled** — the caller owns persistence via
+  `value`/`onChange`; `landedRef` merges uploads the parent has not absorbed
+  yet, so two quick drops cannot race the controlled state into losing one.
+- **One component per file, primitives shared** — `ui/` is `FileTypeBadge`,
+  `ProgressBar`, `Dropzone`, `FileItem`, `StoredFileItem`, `SlotRow`,
+  `FileViewer`, each in its own file, composed by `Uploader` and
+  `SlottedUploader`. Only the two uploaders plus `Dropzone`, `FileItem` and
+  `FileViewer` are exported from `ui.ts`; the rest stay internal so the public
+  surface does not grow with every layout detail.
+- **Callbacks the consumer passes inline go in a ref, not in a deps array** —
+  `ui/FileViewer.tsx`. `resolveViewUrl`/`onClose` are new functions on every
+  parent render, and re-signing a private URL is a round trip. The effects
+  depend on the file being viewed and nothing else.
+- **User copy flows through `src/labels.ts`** — Spanish `DEFAULT_LABELS`
+  (invariant §4.5), `EN_LABELS` opt-in, `Partial` override per hook option or
+  component prop. A hardcoded user-facing string in a component is a bug.
+- **The upload trigger is the app's choice** — `uploadOn: 'select' | 'manual'`
+  in `react/useUploader.ts`. The hook defaults to `'manual'` (form flows), the
+  styled `Uploader` flips to `'select'`. `onUploadStart` marks the real send
+  moment; never hardcode one behavior into a new surface.
+- **Theme via `--color-ui-*` variables** — `tailwind.css` declares defaults;
+  a `:root` (or wrapper) override rebrands the styled layer. New UI classes
+  use tokens, never raw palette colors.
+- **Overlays share `ui/scrollLock.ts` + `ui/useFocusTrap.ts` +
+  `ui/useOverlayTransition.ts`** — refcounted scroll lock (viewer + confirm can
+  stack), one focus-trap contract, and one enter/exit choreography (render on
+  open, `entered` a frame later, keep mounted `OVERLAY_ANIMATION_MS` after
+  close). A new overlay reuses all three instead of hand-rolling any.
+- **An encrypted scope is unreadable by URL** — `server/storage.ts`. The
+  bucket holds ciphertext, so a signed URL would serve garbage: `createStorage`
+  demands `encryptedUrl` next to `crypto` and points `StoredFile.url` at the
+  app's authenticated `view` route, which runs `read()` and decrypts. Both
+  framework adapters expose that route with `Cache-Control: private, no-store`
+  — decrypted bytes must never reach a shared cache.
+- **Drag state is a depth counter, never a boolean** — `ui/Dropzone.tsx`,
+  `ui/SlotRow.tsx`. Moving onto a child fires `dragleave` on the wrapper, so a
+  boolean drops the state mid-drag and the zone flickers. Every new drop target
+  counts `dragenter`/`dragleave` (the playground's drop-anywhere demo does the
+  same at window level).
+- **Touch reads tap, not drag** — `ui/useCoarsePointer.ts`. On
+  `pointer: coarse` the dropzones switch to `tapPrompt`/`bulkTapPrompt` and
+  rely on press feedback (`active:scale`); drag copy is desktop-only. A new
+  zone-like surface must handle both pointers.
 
-One tsup entry per subpath export. Adding an entry means adding it in **three**
-places — `tsup.config.ts`, `exports` in `package.json`, and this table — or
-consumers get a path that resolves in the bundler and fails in Node.
+## 3.1 Developer feedback
 
-| Subpath                                                       | Status      | Contents                                        | May import              |
-| ------------------------------------------------------------- | ----------- | ----------------------------------------------- | ----------------------- |
-| `.`                                                           | **shipped** | types, presets, validation, scope registry      | nothing                 |
-| `./react`                                                     | planned 1.1 | `useUploader`, `useSlots`, abort/progress state | react (peer)            |
-| `./server`                                                    | planned 1.2 | Fetch-API handler, scope authorization          | core only               |
-| `./server/express` · `./server/next`                          | planned 1.2 | framework adapters                              | the handler             |
-| `./adapters/gcs` · `./adapters/s3` · `./adapters/uploadthing` | planned 1.2 | `StorageProvider` implementations               | its SDK (optional peer) |
-| `./ui`                                                        | planned 1.3 | styled dropzone + slotted uploader              | react, its CSS          |
+Two tiers:
 
-## 5. Load-bearing patterns (file → rule)
+- **`ScopeError` (throw, eager)** — configs that can never work: malformed
+  scope, unknown scope name, duplicate slot ids, private scope on a
+  non-signing provider, encrypted scope without CryptoHooks. They fail at
+  import/boot, never in front of a user.
+- **`warnDev(key, message)` (`src/warn.ts`)** — configs that run but not as
+  meant: upload without a strategy, multi-file drop in single mode, slot
+  extensions outside the scope. Dev-only, once per key, prefixed
+  `[uploaderkit]`. Never gate behavior on it.
 
-- **Scope registry** — `src/scopes.ts`. `defineScopes` validates eagerly and
-  throws `ScopeError` at import time. A definition mistake must never survive to
-  runtime.
-- **A scope narrows, never widens** — a scope's `accept` must be a subset of its
-  `category`'s extensions. This is what stops a `pdf` scope from silently
-  accepting executables after an edit.
-- **Validation order is cheapest-first** — `validation.ts` checks size, then
-  extension, then reads bytes. Reordering means a 900 MB file gets read into
-  memory before being rejected. There is a test that pins this.
-- **`FileLike`, not `File`** — `types.ts`. The validation surface takes the
-  four members a browser `File`, a Node `File` and a multer memory file all
-  have. `fromMulterFile` bridges the last one. This is what makes one validation
-  function serve both sides.
-- **Capabilities are declared, not discovered** — `StorageProvider.capabilities`
-  plus `assertProviderSupports`. A private scope on a provider that cannot sign
-  URLs fails when the server boots, not when a user opens a file.
-- **Keys are checked for traversal** — `resolveKey` rejects absolute paths and
-  `..` because the file name reaching `path()` came from the client.
-- **The package never ships a cipher** — `CryptoHooks` is injected. Shipping an
-  encryption implementation would put every consumer on our key handling and our
-  upgrade schedule.
+Adding a validation? Decide the tier first; a throw in a render path or a
+warn for an impossible config are both wrong.
 
-## 6. Invariants (do not break without flagging)
+## 4. Invariants (do not break without flagging)
 
-1. **The core entry is isomorphic.** `src/index.ts` and everything it reaches
-   must not import React, a Node builtin, or a provider SDK. dependency-cruiser
-   enforces this; if you need one of those, it belongs in another entry point.
-2. **Client and server validate with the same function.** Any check added to one
-   side goes in `validation.ts` or `scopes.ts`, never in an adapter.
-3. **Provider SDKs are optional peer dependencies.** Installing this package
-   must never pull `@google-cloud/storage` or `@aws-sdk/*` for someone who does
-   not use them.
-4. **Error messages reaching a user are Spanish and human**; messages reaching a
-   developer (`ScopeError`) are English and say what to fix. Never leak a code
-   or a stack trace into the first group.
-5. **`exports` and `tsup.config.ts` stay in sync** with §4.
-6. **No `any` in exported types.** Internal `as any` is tolerated and flagged.
-7. **Types over interfaces**, arrow functions, no classes except `Error`
-   subclasses.
+1. **The core stays isomorphic.** Registry/validation modules import no React,
+   no Node builtins, no SDK — the browser and the server must run the same
+   validation from the same file. depcruise fails the build otherwise.
+2. **`react` and provider SDKs stay `external`** in `tsup.config.ts` —
+   inlining breaks `instanceof` across the boundary.
+3. **Provider SDKs are optional peers** (devDeps only so the repo typechecks).
+   Installing this package must never pull `@google-cloud/storage` for an app
+   that does not use GCS.
+4. **Crypto is offered, never forced.** `/server` ships `createAesGcmCrypto`
+   (AES-256-GCM, key strictly 64 hex chars — no passphrase derivation, so two
+   instances can never run "almost the same" secret). Apps may inject their own
+   `CryptoHooks` instead; the key always belongs to the app. An encrypted scope
+   additionally requires `encryptedUrl`, or `createStorage` throws: without the
+   view route its `StoredFile.url` would hand ciphertext to an `<img>`.
+5. **User-facing messages Spanish and human; dev-facing English and
+   actionable.** Framework adapters map the first family to JSON, rethrow the
+   second.
+6. **No app-specific scopes ship here.** Destinations belong in each app's own
+   `defineScopes` call; the package only ships the contract.
 
-## 7. Relationship with `@pibytelabs/uploaderkit`
+## 5. Commands
 
-The company package is a **thin layer**: it depends on this one and re-exports
-it, adding only its own scopes, presets and theme. It never copies source.
+`pnpm dev` (playground on :5173 + tsup watch; Vite aliases the package to
+`src`, so edits hot-reload without a build) · `pnpm verify` (lint + build +
+typecheck + test) · `pnpm verify:ci` (adds secretlint, knip, depcruise over
+package AND playground, size-limit, publint, attw; pre-push and CI run exactly
+this) · `pnpm --filter uploaderkit test:watch`.
 
-Decision rule for where a change lands: **would a project outside that company
-want it?** Yes → here, then bump the dependency downstream. No → the company
-repo.
+size-limit budgets live in `packages/uploaderkit/package.json` (client entries
+only — `/server` imports `node:crypto` and has no browser bundle to budget).
+attw excludes `./tailwind.css` (CSS resolves as CSS, not as types).
 
-This split is also what keeps ownership legible: everything generic is public
-and MIT; everything business-specific stays private.
+Every surface needs a playground demo — `playground/src/examples/` plus an
+entry in `shell/registry.ts`. A feature nobody can click is a feature nobody
+reviews. The playground must import `packages/uploaderkit/tailwind.css` from
+its own CSS entry, or none of the `ui-*` utilities are generated and every
+component renders bare.
 
-## 8. Commands
+Release: merge to `main` → release-please PR → merge publishes to npm.
 
-`pnpm verify` (lint + build + typecheck + test) · `pnpm verify:ci` (adds
-secretlint, knip, depcruise, size-limit, publint) · `pnpm test` ·
-`pnpm --filter uploaderkit test:watch` · `pnpm build` · `pnpm fix` ·
-`pnpm docs` (typedoc).
+## 6. Known pitfalls
 
-Release: merge to `main` → release-please opens a version PR → merging it tags,
-creates the GitHub Release and publishes to npm with `--provenance` (OIDC, no
-long-lived token).
-
-## 9. Conventions
-
-- Tabs · single quotes · no semicolons · ES5 trailing commas · width 80.
-- Tests colocated (`*.test.ts`) next to the module they cover.
-- Comments explain **why**, never what. A comment restating the code is deleted.
-- Exported symbols carry a one-line doc comment: this is a library, and an
-  undocumented export gets reinvented instead of reused.
-
-## 10. Known pitfalls
-
-| Date       | Severity | Pitfall                                                                                                                                                          | Reference          |
-| ---------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| 2026-08-12 | low      | `noUncheckedIndexedAccess` is on: indexing a record returns `T \| undefined`. Route lookups through `registry.get()` instead of indexing                         | `src/scopes.ts`    |
-| 2026-08-12 | low      | OOXML formats (docx/xlsx) share the ZIP `PK` signature, so a magic-number check cannot tell them apart. Do not add per-format ZIP signatures expecting precision | `src/constants.ts` |
+| Date       | Severity | Pitfall                                                                                                                                                                                                             | Reference                    |
+| ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| 2026-08-14 | med      | `StorageProvider.get/delete/signedUrl` receive only the key, so the GCS adapter probes the private bucket first and falls back to public. Fix belongs upstream (add visibility to read ops) when the core unfreezes | `src/adapters/gcs.ts`        |
+| 2026-08-14 | low      | `compressImage` cannot honour `stripExif: false` — canvas re-encode always drops metadata. Flag it if a scope ever needs EXIF preserved                                                                             | `src/react/compressImage.ts` |
+| 2026-08-14 | low      | react/@google-cloud/storage are devDeps only for typechecking; depcruise exempts `npm-peer` from the dev-dep rule to allow this                                                                                     | `.dependency-cruiser.cjs`    |
+| 2026-08-14 | med      | `dragleave` fires on a wrapper when the pointer enters its own child, so a boolean drag flag flickers. Count depth instead — `Dropzone`, `SlotRow` and the playground's drop-anywhere all do                        | `src/ui/Dropzone.tsx`        |
+| 2026-08-14 | med      | A hidden `<input>` inside a clickable wrapper recurses: `input.click()` bubbles back to the wrapper, which calls it again. Browsers cut it short, happy-dom blows the stack. Keep the `stopPropagation` guard       | `src/ui/Dropzone.tsx`        |
