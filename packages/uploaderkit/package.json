@@ -1,7 +1,7 @@
 {
 	"name": "uploaderkit",
 	"version": "1.0.0",
-	"description": "One upload contract for every storage provider — scope registry, isomorphic validation, headless React and a server router.",
+	"description": "One upload contract for every storage provider \u2014 scope registry, isomorphic validation, headless React and a server router.",
 	"keywords": [
 		"upload",
 		"file-upload",
@@ -35,7 +35,9 @@
 	},
 	"files": [
 		"dist",
+		"tailwind.css",
 		"README.md",
+		"README.es.md",
 		"LICENSE",
 		"NOTICE"
 	],
@@ -53,6 +55,87 @@
 				"default": "./dist/index.cjs"
 			}
 		},
+		"./react": {
+			"import": {
+				"types": "./dist/react.d.ts",
+				"default": "./dist/react.js"
+			},
+			"require": {
+				"types": "./dist/react.d.cts",
+				"default": "./dist/react.cjs"
+			}
+		},
+		"./server": {
+			"import": {
+				"types": "./dist/server.d.ts",
+				"default": "./dist/server.js"
+			},
+			"require": {
+				"types": "./dist/server.d.cts",
+				"default": "./dist/server.cjs"
+			}
+		},
+		"./server/express": {
+			"import": {
+				"types": "./dist/server/express.d.ts",
+				"default": "./dist/server/express.js"
+			},
+			"require": {
+				"types": "./dist/server/express.d.cts",
+				"default": "./dist/server/express.cjs"
+			}
+		},
+		"./server/next": {
+			"import": {
+				"types": "./dist/server/next.d.ts",
+				"default": "./dist/server/next.js"
+			},
+			"require": {
+				"types": "./dist/server/next.d.cts",
+				"default": "./dist/server/next.cjs"
+			}
+		},
+		"./adapters/memory": {
+			"import": {
+				"types": "./dist/adapters/memory.d.ts",
+				"default": "./dist/adapters/memory.js"
+			},
+			"require": {
+				"types": "./dist/adapters/memory.d.cts",
+				"default": "./dist/adapters/memory.cjs"
+			}
+		},
+		"./adapters/gcs": {
+			"import": {
+				"types": "./dist/adapters/gcs.d.ts",
+				"default": "./dist/adapters/gcs.js"
+			},
+			"require": {
+				"types": "./dist/adapters/gcs.d.cts",
+				"default": "./dist/adapters/gcs.cjs"
+			}
+		},
+		"./ui": {
+			"import": {
+				"types": "./dist/ui.d.ts",
+				"default": "./dist/ui.js"
+			},
+			"require": {
+				"types": "./dist/ui.d.cts",
+				"default": "./dist/ui.cjs"
+			}
+		},
+		"./adapters/s3": {
+			"import": {
+				"types": "./dist/adapters/s3.d.ts",
+				"default": "./dist/adapters/s3.js"
+			},
+			"require": {
+				"types": "./dist/adapters/s3.d.cts",
+				"default": "./dist/adapters/s3.cjs"
+			}
+		},
+		"./tailwind.css": "./tailwind.css",
 		"./package.json": "./package.json"
 	},
 	"scripts": {
@@ -65,18 +148,99 @@
 		"size": "size-limit",
 		"size:why": "size-limit --why",
 		"check:publish": "publint",
-		"docs": "typedoc"
+		"docs": "typedoc",
+		"check:types": "attw --pack . --exclude-entrypoints ./tailwind.css"
 	},
 	"size-limit": [
 		{
 			"name": "core (index)",
 			"path": "dist/index.js",
 			"limit": "6 kB"
+		},
+		{
+			"name": "react",
+			"path": "dist/react.js",
+			"limit": "8 kB",
+			"ignore": [
+				"react",
+				"react-dom"
+			]
+		},
+		{
+			"name": "ui",
+			"path": "dist/ui.js",
+			"limit": "13 kB",
+			"ignore": [
+				"react",
+				"react-dom"
+			]
 		}
 	],
 	"devDependencies": {
+		"@aws-sdk/client-s3": "^3.1109.0",
+		"@aws-sdk/s3-request-presigner": "^3.1109.0",
+		"@google-cloud/storage": "^7.22.0",
+		"@testing-library/react": "^16.3.2",
+		"@types/node": "^26.2.0",
+		"@types/react": "^18.3.12",
+		"@types/react-dom": "^19.2.0",
+		"happy-dom": "^20.11.2",
+		"react": "^18.3.1",
+		"react-dom": "^18.3.1",
 		"tsup": "^8.5.0",
 		"typescript": "^5.9.3",
 		"vitest": "^3.2.4"
+	},
+	"typesVersions": {
+		"*": {
+			"react": [
+				"./dist/react.d.ts"
+			],
+			"server": [
+				"./dist/server.d.ts"
+			],
+			"server/express": [
+				"./dist/server/express.d.ts"
+			],
+			"server/next": [
+				"./dist/server/next.d.ts"
+			],
+			"adapters/memory": [
+				"./dist/adapters/memory.d.ts"
+			],
+			"adapters/gcs": [
+				"./dist/adapters/gcs.d.ts"
+			],
+			"ui": [
+				"./dist/ui.d.ts"
+			],
+			"adapters/s3": [
+				"./dist/adapters/s3.d.ts"
+			]
+		}
+	},
+	"peerDependencies": {
+		"@aws-sdk/client-s3": ">=3",
+		"@aws-sdk/s3-request-presigner": ">=3",
+		"@google-cloud/storage": ">=7",
+		"react": ">=18",
+		"react-dom": ">=18"
+	},
+	"peerDependenciesMeta": {
+		"@aws-sdk/client-s3": {
+			"optional": true
+		},
+		"@aws-sdk/s3-request-presigner": {
+			"optional": true
+		},
+		"@google-cloud/storage": {
+			"optional": true
+		},
+		"react": {
+			"optional": true
+		},
+		"react-dom": {
+			"optional": true
+		}
 	}
 }
