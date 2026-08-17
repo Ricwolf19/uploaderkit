@@ -38,6 +38,7 @@ Scopes que ambos lados validan, un uploader headless con progreso / abort / comp
   - [`SlottedUploader`](#slotteduploader)
   - [Confirmaciones](#confirmaciones)
   - [Vista previa (`FileViewer`)](#vista-previa-fileviewer)
+  - [Leer un archivo guardado](#leer-un-archivo-guardado)
   - [Labels — todo el copy es reemplazable](#labels--todo-el-copy-es-reemplazable)
   - [Theming](#theming)
   - [Headless por completo](#headless-por-completo)
@@ -546,6 +547,24 @@ nadie tenga que adivinarlos:
 <FileViewer file={viendo} files={imagenesGuardadas} onClose={cerrar} />
 ```
 
+Teclado: `Esc` cierra, `←`/`→` recorren la galería, `D` descarga y `O` abre el
+archivo en pestaña — cada uno anunciado en el pie con pointers finos. Nunca se
+reclama una tecla con modificador, así que `⌘D` sigue guardando en marcadores.
+
+`renderError` reemplaza el panel de "no se pudo cargar" integrado. Recibe el
+archivo que falló más un `retry` que vuelve a resolverlo, para que un panel
+propio conserve la recuperación que da el default:
+
+```tsx
+<FileViewer
+	file={viendo}
+	onClose={cerrar}
+	renderError={({ file, retry }) => (
+		<MiPanelDeError name={file.fileName} onRetry={retry} />
+	)}
+/>
+```
+
 `useFileViewer` es dueño del estado abrir/cerrar que si no repetirías en cada
 pantalla:
 
@@ -555,6 +574,39 @@ const viewer = useFileViewer({ resolveUrl })
 <button onClick={() => viewer.open(stored)}>Ver</button>
 <FileViewer {...viewer.viewerProps} />
 ```
+
+### Leer un archivo guardado
+
+Un `<img>` o un `<iframe>` no pueden mandar header `Authorization`, así que un
+objeto privado o cifrado nunca renderiza desde su url cruda. Dos helpers hacen
+la lectura autenticada por ti — misma regla, dos formatos de salida:
+
+```tsx
+import {
+	createBlobUrlResolver,
+	createBytesResolver,
+} from 'uploaderkit/react'
+
+// Para el visor: hace fetch con los headers de la app y devuelve un object URL.
+const resolveViewUrl = createBlobUrlResolver({
+	baseUrl: apiUrl,
+	headers: () => ({ Authorization: `Bearer ${getToken()}` }),
+})
+
+<Uploader {...props} resolveViewUrl={resolveViewUrl} />
+
+// Para código que procesa el archivo en vez de mostrarlo.
+const readBytes = createBytesResolver({ baseUrl: apiUrl, headers })
+const pdf = await PDFDocument.load(await readBytes(stored.url))
+```
+
+La regla que comparten: una url **relativa a la app** es tuya y viaja con tus
+headers; una **absoluta** ya es alcanzable y se pide pelada — el token nunca
+debe ir a un host de terceros. Leer los bytes por tu propio endpoint es además
+lo que le ahorra a un bucket público su propia política de CORS: un `<img>`
+está exento de CORS, un `fetch` por bytes no.
+
+`viewUrlFileName(url)` recupera el nombre visible de una url `/view?key=…`.
 
 ### Soltar para reemplazar
 
