@@ -41,5 +41,6 @@ export {
 export {
 	type BlobUrlResolverOptions,
 	createBlobUrlResolver,
+	createBytesResolver,
 	viewUrlFileName,
 } from './react/viewResolver'
