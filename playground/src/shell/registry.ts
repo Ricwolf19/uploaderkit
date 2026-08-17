@@ -9,6 +9,7 @@ import { FormExample } from '../examples/FormExample'
 import { GalleryExample } from '../examples/GalleryExample'
 import { HeadlessExample } from '../examples/HeadlessExample'
 import { MultipleExample } from '../examples/MultipleExample'
+import { ResolverExample } from '../examples/ResolverExample'
 import { RetryExample } from '../examples/RetryExample'
 import { SlottedExample } from '../examples/SlottedExample'
 import { ValidationExample } from '../examples/ValidationExample'
@@ -127,6 +128,12 @@ export const DEMO_GROUPS: DemoGroup[] = [
 				label: 'UI propia',
 				blurb: 'El hook sin /ui — design system del consumidor.',
 				render: HeadlessExample,
+			},
+			{
+				id: 'resolvers',
+				label: 'Resolvers de lectura',
+				blurb: 'Object URL vs bytes, y qué url lleva los headers.',
+				render: ResolverExample,
 			},
 		],
 	},
