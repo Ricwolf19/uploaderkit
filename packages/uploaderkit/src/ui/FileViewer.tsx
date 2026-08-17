@@ -1,14 +1,35 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import { getMimeType } from '../file'
 import { resolveLabels, type UploaderLabels } from '../labels'
 import { cn } from './cn'
+import { DownloadIcon, ExternalLinkIcon, FileWarningIcon } from './icons'
 import { Kbd } from './Kbd'
 import { lockBodyScroll, unlockBodyScroll } from './scrollLock'
 import { useCoarsePointer } from './useCoarsePointer'
 import { useFocusTrap } from './useFocusTrap'
 import { useOverlayTransition } from './useOverlayTransition'
+
+/**
+ * The viewer's empty states — failure and "no preview" — speak the overlay's
+ * own language: no card, white on the black scrim, the same translucent
+ * controls as the header. Theme tokens are deliberately absent: this component
+ * ships inside many apps, and a surface-coloured panel would read as a stray
+ * card from whichever one is hosting it.
+ */
+const EMPTY_STATE_CLASS = 'mx-4 flex max-w-sm flex-col items-center text-center'
+const EMPTY_TITLE_CLASS = 'text-sm font-medium text-white'
+const EMPTY_HINT_CLASS = 'mt-1.5 text-xs leading-relaxed text-white/60'
+/** Primary sits one step brighter than the header actions, never coloured. */
+const EMPTY_PRIMARY_CLASS =
+	'focus-visible:ring-ui-ring rounded-ui cursor-pointer bg-white/20 px-4 py-2 text-sm text-white transition-colors hover:bg-white/30 focus-visible:ring-2 focus-visible:outline-none'
+const EMPTY_SECONDARY_CLASS =
+	'focus-visible:ring-ui-ring rounded-ui cursor-pointer border border-white/20 px-4 py-2 text-sm text-white/80 transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:outline-none'
+
+/** Shared chrome of the header actions, so the three stay one control strip. */
+const ACTION_CLASS =
+	'focus-visible:ring-ui-ring rounded-ui inline-flex shrink-0 cursor-pointer items-center gap-1.5 bg-white/10 px-3 py-1.5 text-xs whitespace-nowrap text-white transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:outline-none'
 
 /** What the viewer needs to render a file — a StoredFile satisfies it. */
 export type ViewableFile = {
@@ -32,6 +53,15 @@ export type FileViewerProps = {
 	 * its /storage signed-url endpoint.
 	 */
 	resolveUrl?: (file: ViewableFile) => Promise<string>
+	/**
+	 * Replaces the built-in "could not load" panel. Receives the file that
+	 * failed and a `retry` that re-resolves and re-renders it, so a custom
+	 * panel keeps the recovery the default one offers.
+	 */
+	renderError?: (context: {
+		file: ViewableFile
+		retry: () => void
+	}) => ReactNode
 	labels?: Partial<UploaderLabels>
 }
 
@@ -78,6 +108,7 @@ export const FileViewer = ({
 	onClose,
 	files,
 	resolveUrl,
+	renderError,
 	labels,
 }: FileViewerProps) => {
 	const copy = resolveLabels(labels)
@@ -86,6 +117,7 @@ export const FileViewer = ({
 	const [failed, setFailed] = useState(false)
 	// Bumping it re-runs the resolution — the retry button after a failure.
 	const [attempt, setAttempt] = useState(0)
+	const retry = useCallback(() => setAttempt(previous => previous + 1), [])
 	const panelRef = useRef<HTMLDivElement>(null)
 	const open = file !== null
 	const { mounted, entered } = useOverlayTransition(open)
@@ -158,12 +190,25 @@ export const FileViewer = ({
 	const closeRef = useRef(onClose)
 	closeRef.current = onClose
 
+	// Clicking the anchors is what downloads/opens: replicating their behaviour
+	// from a handler would mean re-deriving `download` and popup rules.
+	const downloadRef = useRef<HTMLAnchorElement>(null)
+	const openTabRef = useRef<HTMLAnchorElement>(null)
+
 	useEffect(() => {
 		if (!open) return
 		const onKey = (event: KeyboardEvent) => {
+			// A modifier means the key belongs to the browser (⌘D bookmarks,
+			// ⌘O opens a file): claiming it would fire our action AND theirs.
+			if (event.metaKey || event.ctrlKey || event.altKey) return
 			if (event.key === 'Escape') closeRef.current()
 			if (event.key === 'ArrowLeft') navigate(-1)
 			if (event.key === 'ArrowRight') navigate(1)
+			// Bare letters, like the arrows above: the viewer is modal and
+			// traps focus, so nothing else can be listening.
+			const key = event.key.toLowerCase()
+			if (key === 'd') downloadRef.current?.click()
+			if (key === 'o') openTabRef.current?.click()
 		}
 		window.addEventListener('keydown', onKey)
 		lockBodyScroll()
@@ -188,7 +233,10 @@ export const FileViewer = ({
 	const view = current ?? lastViewRef.current
 	if (!mounted || !view) return null
 	const kind = kindOf(view)
-	const embedPdf = kind === 'pdf' && !narrow
+	// Drives BOTH the branch and the stretch class: the iframe is the only
+	// child that fills its container, and letting the two drift is what pinned
+	// a failed PDF's message to the top edge.
+	const showsPdf = kind === 'pdf' && !narrow && !failed && !!url
 	const hasGallery = list !== null && list.length > 1
 
 	const arrow =
@@ -218,23 +266,49 @@ export const FileViewer = ({
 						{cursor + 1} / {list.length}
 					</span>
 				)}
+				{/* Three actions plus a title do not fit a phone, so a coarse
+				    pointer gets glyphs and the labels move to `aria-label`. */}
 				{url && (
-					<a
-						href={url}
-						target='_blank'
-						rel='noreferrer'
-						className='focus-visible:ring-ui-ring rounded-ui shrink-0 cursor-pointer bg-white/10 px-3 py-1.5 text-xs whitespace-nowrap text-white transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:outline-none'
-					>
-						{copy.openInTab}
-					</a>
+					<>
+						<a
+							ref={downloadRef}
+							href={url}
+							download={view.fileName}
+							aria-label={copy.downloadShort}
+							title={copy.downloadShort}
+							className={ACTION_CLASS}
+						>
+							{coarse ? (
+								<DownloadIcon className='h-4 w-4' />
+							) : (
+								copy.downloadShort
+							)}
+						</a>
+						<a
+							ref={openTabRef}
+							href={url}
+							target='_blank'
+							rel='noreferrer'
+							aria-label={copy.openInTab}
+							title={copy.openInTab}
+							className={ACTION_CLASS}
+						>
+							{coarse ? (
+								<ExternalLinkIcon className='h-4 w-4' />
+							) : (
+								copy.openInTab
+							)}
+						</a>
+					</>
 				)}
 				<button
 					type='button'
 					onClick={onClose}
 					aria-label={copy.close}
-					className='focus-visible:ring-ui-ring rounded-ui shrink-0 cursor-pointer bg-white/10 px-3 py-1.5 text-xs whitespace-nowrap text-white transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:outline-none'
+					title={copy.close}
+					className={ACTION_CLASS}
 				>
-					✕ {copy.close}
+					{coarse ? '✕' : <>✕ {copy.close}</>}
 				</button>
 			</div>
 
@@ -243,7 +317,7 @@ export const FileViewer = ({
 				tabIndex={-1}
 				className={cn(
 					'relative flex min-h-0 flex-1 items-center justify-center p-3 outline-none sm:p-4',
-					embedPdf && 'items-stretch'
+					showsPdf && 'items-stretch'
 				)}
 				onClick={event => event.stopPropagation()}
 			>
@@ -271,43 +345,83 @@ export const FileViewer = ({
 				)}
 
 				{failed ? (
-					<div className='bg-ui-surface rounded-ui-lg p-6 text-center'>
-						<p className='text-ui-fg text-sm'>{copy.viewerError}</p>
-						<button
-							type='button'
-							onClick={() => setAttempt(previous => previous + 1)}
-							className='bg-ui-primary text-ui-primary-fg hover:bg-ui-primary-hover focus-visible:ring-ui-ring rounded-ui mt-3 inline-block cursor-pointer px-4 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none'
-						>
-							{copy.viewerRetry}
-						</button>
-					</div>
+					(renderError?.({ file: view, retry }) ?? (
+						<div className={EMPTY_STATE_CLASS}>
+							<span className='mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/10'>
+								<FileWarningIcon className='h-8 w-8' />
+							</span>
+							<p className={EMPTY_TITLE_CLASS}>{copy.viewerError}</p>
+							<p className={EMPTY_HINT_CLASS}>{copy.viewerErrorHint}</p>
+							{view.fileName && (
+								<p className='mt-3 max-w-full truncate font-mono text-[11px] text-white/40'>
+									{view.fileName}
+								</p>
+							)}
+							<div className='mt-5 flex flex-wrap justify-center gap-2'>
+								<button
+									type='button'
+									onClick={retry}
+									className={EMPTY_PRIMARY_CLASS}
+								>
+									{copy.viewerRetry}
+								</button>
+								{/* The bytes may still be reachable even when
+								    the preview is not — never a dead end. */}
+								{url && (
+									<a
+										href={url}
+										download={view.fileName}
+										className={EMPTY_SECONDARY_CLASS}
+									>
+										{copy.downloadShort}
+									</a>
+								)}
+							</div>
+						</div>
+					))
 				) : !url ? (
 					<p className='text-sm text-white/70'>{copy.viewerLoading}</p>
 				) : kind === 'image' ? (
 					<img
 						src={url}
 						alt={view.fileName ?? ''}
+						// A resolved url only proves the address; the object
+						// behind it can still 404, and an untracked failure
+						// renders as an invisible image.
+						onError={() => setFailed(true)}
 						className={cn(
 							'rounded-ui-lg max-h-full max-w-full object-contain shadow-2xl',
 							'transition-transform duration-200 ease-out',
 							entered ? 'scale-100' : 'scale-[0.97]'
 						)}
 					/>
-				) : embedPdf ? (
+				) : showsPdf ? (
 					<iframe
 						src={url}
 						title={view.fileName ?? 'PDF'}
+						// Best effort: a cross-origin 404 usually renders the
+						// browser's own error page inside the frame and fires
+						// `load`, so this catches only the cases it can.
+						onError={() => setFailed(true)}
 						className='rounded-ui-lg h-full w-full max-w-4xl bg-white shadow-2xl'
 					/>
 				) : (
-					<div className='bg-ui-surface rounded-ui-lg p-6 text-center'>
-						<p className='text-ui-fg text-sm'>{copy.noPreview}</p>
+					<div className={EMPTY_STATE_CLASS}>
+						<span className='mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/10'>
+							<FileWarningIcon className='h-8 w-8' />
+						</span>
+						<p className={EMPTY_TITLE_CLASS}>{copy.noPreview}</p>
+						{view.fileName && (
+							<p className='mt-3 max-w-full truncate font-mono text-[11px] text-white/40'>
+								{view.fileName}
+							</p>
+						)}
 						<a
 							href={url}
 							download={view.fileName}
 							target='_blank'
 							rel='noreferrer'
-							className='bg-ui-fg text-ui-surface rounded-ui mt-3 inline-block cursor-pointer px-4 py-2 text-sm transition-opacity hover:opacity-85'
+							className={cn(EMPTY_PRIMARY_CLASS, 'mt-5 inline-block')}
 						>
 							{copy.download(view.fileName ?? copy.filePreview)}
 						</a>
@@ -324,6 +438,16 @@ export const FileViewer = ({
 					<span className='flex items-center gap-1.5'>
 						<Kbd>Esc</Kbd> {copy.close}
 					</span>
+					{url && (
+						<>
+							<span className='flex items-center gap-1.5'>
+								<Kbd>D</Kbd> {copy.downloadShort}
+							</span>
+							<span className='flex items-center gap-1.5'>
+								<Kbd>O</Kbd> {copy.openInTab}
+							</span>
+						</>
+					)}
 					{hasGallery && (
 						<span className='flex items-center gap-1.5'>
 							<Kbd>←</Kbd>

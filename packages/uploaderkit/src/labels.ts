@@ -47,10 +47,14 @@ export type UploaderLabels = {
 	viewerLoading: string
 	/** Viewer: the URL could not be resolved (expired signature, network). */
 	viewerError: string
+	/** Second line of the error panel — what the reader can do about it. */
+	viewerErrorHint: string
 	/** Viewer: button that retries the resolution. */
 	viewerRetry: string
 	/** Viewer: open the file in a browser tab. */
 	openInTab: string
+	/** Header action; the long `download` names a file, this labels a button. */
+	downloadShort: string
 	/** Viewer: close button. */
 	close: string
 	/** Viewer: formats without an inline preview. */
@@ -94,8 +98,11 @@ export const DEFAULT_LABELS: UploaderLabels = {
 		`"${fileName}" no corresponde a ningún documento`,
 	viewerLoading: 'Cargando…',
 	viewerError: 'No se pudo cargar la vista previa',
+	viewerErrorHint:
+		'El archivo puede haberse movido o el enlace expiró. Puedes reintentar o descargarlo.',
 	viewerRetry: 'Reintentar',
 	openInTab: 'Abrir en pestaña',
+	downloadShort: 'Descargar',
 	close: 'Cerrar',
 	noPreview: 'Este formato no tiene vista previa',
 	download: fileName => `Descargar ${fileName}`,
@@ -131,8 +138,11 @@ export const EN_LABELS: UploaderLabels = {
 	fileWithoutSlot: fileName => `"${fileName}" does not match any document`,
 	viewerLoading: 'Loading…',
 	viewerError: 'The preview could not be loaded',
+	viewerErrorHint:
+		'The file may have moved or the link expired. You can retry or download it.',
 	viewerRetry: 'Retry',
 	openInTab: 'Open in tab',
+	downloadShort: 'Download',
 	close: 'Close',
 	noPreview: 'This format has no preview',
 	download: fileName => `Download ${fileName}`,
