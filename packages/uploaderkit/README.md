@@ -69,7 +69,7 @@ Scopes both sides validate against, a headless uploader with progress / abort / 
 - **Provider adapters** — Google Cloud Storage (two-bucket layout), any S3-compatible backend (AWS, Cloudflare R2, Backblaze B2, MinIO, Wasabi) and an in-memory provider for tests. All optional peers: choosing GCS never installs the AWS SDK.
 - **Named slots** — `SlottedUploader` fills one file per named position (letterhead, ID, tax certificate); a bulk drop routes each file to its slot and renames it so re-uploads overwrite in place.
 - **No cipher shipped by default** — private scopes declare `encrypt: true` and the app injects `CryptoHooks`. `createAesGcmCrypto` is available as a reference implementation.
-- **You choose when the upload fires** — `uploadOn: 'select'` sends as soon as a valid file lands; `'manual'` holds files until `upload()` — the form-submit flow. `onUploadStart` announces the moment a batch leaves.
+- **You choose when the upload fires** — `uploadOn: 'select'` sends as soon as a valid file lands; `'manual'` holds files until `upload()` — the form-submit flow, reachable from the styled components through `controllerRef`. `onUploadStart` announces the moment a batch leaves.
 - **Retry with backoff + concurrency cap** — opt-in resilience for flaky networks: transient strategy failures retry behind exponential backoff, and large batches queue behind a concurrency limit.
 - **Confirmation dialogs built in** — `confirmRemove` / `confirmReplace` gate destructive file actions behind an accessible dialog (focus lands on cancel), and `ConfirmDialog` is exported for app-level use.
 - **Paste and camera capture** — a focused dropzone accepts a pasted screenshot, and `capture` opens the mobile camera directly.
@@ -330,6 +330,55 @@ const onSubmit = async (event: FormEvent) => {
 trigger — so a form can flip into its "sending" state at the true moment, not
 at selection.
 
+At the styled-component level the choice is a three-way contract —
+`uploadOn: 'select' | 'submit' | 'manual'` — one mode per kind of screen:
+
+| Mode       | Who sends                         | Use it for                                                                       |
+| ---------- | --------------------------------- | -------------------------------------------------------------------------------- |
+| `'select'` | The zone, the moment a file lands | Avatars, quick replacements — the file IS the action                             |
+| `'submit'` | The form, via `controllerRef`     | Any file that depends on the rest of a form to make sense (documents, catalogs)  |
+| `'manual'` | The zone's own upload button      | Evidence and punctual flows with no form around them — drop now, send when ready |
+
+Prefer `'submit'` whenever the file belongs to a form the user can abandon.
+A scope with a stable key overwrites on every put, so an upload that fires on
+selection has **already** changed what the entity serves — a customer's logo, a
+product photo — even if the operator then hits Cancel. Deferring is what makes
+"cancel" mean cancel. (`SlottedUploader` offers `'select'` and `'submit'` only:
+it has no button surface, so `'manual'` staged slots could never leave.)
+
+The `'submit'` wiring:
+
+```tsx
+const uploaderRef = useRef<UploaderController | null>(null)
+const [staged, setStaged] = useState(false)
+
+const onSubmit = async () => {
+	if (uploaderRef.current?.hasPending) await uploaderRef.current.upload()
+	await handleSubmit(save)() // reads the values the upload just wrote
+}
+
+<Uploader
+	{...props}
+	uploadOn='submit'
+	controllerRef={uploaderRef}
+	onPendingChange={setStaged}
+/>
+<button disabled={!isDirty && !staged}>Guardar</button>
+```
+
+Two details that are easy to get wrong:
+
+- Flush **before** `handleSubmit(...)()`, not inside the submit callback. An
+  upload settles into the form through `setValue`, and a callback that already
+  received its `data` argument would read the values from before it.
+- `onPendingChange` is what tells the form it has unsent work. A staged file
+  never touches the fields, so a save button gated on `isDirty` alone stays
+  disabled on a pristine form the user just dropped a file into.
+
+Under `'submit'` the zone renders no upload button of its own: two ways to
+send the same batch is one too many, and the form's is the one that knows
+whether the rest of the fields are valid.
+
 ### Retry and concurrency
 
 Both opt-in, both living entirely inside the hook:
@@ -492,9 +541,9 @@ import { Uploader } from 'uploaderkit/ui'
 ```
 
 It accepts every `useUploader` option plus the presentation props above, and
-defaults `uploadOn` to `'select'`. Pass `uploadOn='manual'` and the zone gains
-an upload button for the files still waiting — or skip the component and drive
-`upload()` from your own submit through the hook. `resolveViewUrl` re-signs a
+defaults `uploadOn` to `'select'`. `'manual'` gives the zone an upload button
+for the files still waiting; `'submit'` hands the send to your form through
+`controllerRef` (see [Upload trigger](#upload-trigger--select-vs-manual)). `resolveViewUrl` re-signs a
 private object right before previewing it, for the case where the stored URL
 has expired.
 

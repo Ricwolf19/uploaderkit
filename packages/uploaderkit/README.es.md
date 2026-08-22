@@ -310,6 +310,58 @@ const onSubmit = async (event: FormEvent) => {
 }
 ```
 
+A nivel de los componentes con estilos la elección es un contrato de tres —
+`uploadOn: 'select' | 'submit' | 'manual'` — un modo por tipo de pantalla:
+
+| Modo       | Quién manda                            | Úsalo para                                                                               |
+| ---------- | -------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `'select'` | La zona, en cuanto aterriza un archivo | Avatares, reemplazos rápidos — el archivo ES la acción                                   |
+| `'submit'` | El formulario, vía `controllerRef`     | Todo archivo que depende del resto de un form para tener sentido (documentos, catálogos) |
+| `'manual'` | El botón propio de la zona             | Evidencias y flujos puntuales sin form alrededor — suelta ahora, manda cuando quieras    |
+
+Prefiere `'submit'` siempre que el archivo pertenezca a un formulario que el
+usuario puede abandonar. Un scope de key estable sobrescribe en cada put, así
+que una subida que dispara al seleccionar **ya** cambió lo que la entidad
+sirve — el logo de un cliente, la foto de un producto — aunque el operador le
+dé Cancelar después. Diferir es lo que hace que "cancelar" signifique
+cancelar. (`SlottedUploader` solo ofrece `'select'` y `'submit'`: no tiene
+superficie de botón, así que un slot en espera bajo `'manual'` nunca podría
+salir.)
+
+El cableado de `'submit'`:
+
+```tsx
+const uploaderRef = useRef<UploaderController | null>(null)
+const [staged, setStaged] = useState(false)
+
+const onSubmit = async () => {
+	if (uploaderRef.current?.hasPending) await uploaderRef.current.upload()
+	await handleSubmit(save)() // lee los valores que la subida acaba de escribir
+}
+
+<Uploader
+	{...props}
+	uploadOn='submit'
+	controllerRef={uploaderRef}
+	onPendingChange={setStaged}
+/>
+<button disabled={!isDirty && !staged}>Guardar</button>
+```
+
+Dos detalles fáciles de equivocar:
+
+- Vacía la cola **antes** de `handleSubmit(...)()`, no dentro del callback de
+  submit. Una subida aterriza en el form vía `setValue`, y un callback que ya
+  recibió su argumento `data` leería los valores de antes.
+- `onPendingChange` es lo que le avisa al form que tiene trabajo sin mandar.
+  Un archivo en espera nunca toca los campos, así que un botón de guardar
+  condicionado solo a `isDirty` se queda deshabilitado en un formulario limpio
+  al que el usuario acaba de soltarle un archivo.
+
+Bajo `'submit'` la zona no renderiza botón de subida propio: dos formas de
+mandar el mismo batch es una de más, y la del formulario es la que sabe si el
+resto de los campos son válidos.
+
 `onUploadStart(files)` se dispara cuando un batch sale de verdad — desde
 cualquiera de los dos triggers — para que un formulario entre a su estado
 "enviando" en el momento real, no en la selección.
@@ -479,9 +531,10 @@ import { Uploader } from 'uploaderkit/ui'
 ```
 
 Acepta todas las opciones de `useUploader` más las props de presentación de
-arriba, y pone `uploadOn` en `'select'` por defecto. Pasa `uploadOn='manual'`
-y la zona gana un botón de subir para los archivos que esperan — o sáltate el
-componente y dispara `upload()` desde tu propio submit con el hook.
+arriba, y pone `uploadOn` en `'select'` por defecto. `'manual'` le da a la
+zona un botón de subida para los archivos que esperan; `'submit'` entrega el
+envío a tu formulario a través de `controllerRef` (ver
+[Disparo de la subida](#disparo-de-la-subida--select-vs-manual)).
 `resolveViewUrl` vuelve a firmar un objeto privado justo antes de
 previsualizarlo, para el caso en que la URL guardada ya expiró.
 
