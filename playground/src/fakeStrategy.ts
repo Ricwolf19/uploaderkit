@@ -1,5 +1,7 @@
-import type { StoredFile } from 'uploaderkit'
+import type { ScopeRegistry, StoredFile } from 'uploaderkit'
 import type { UploadStrategy } from 'uploaderkit/react'
+
+import type { FakeBucket } from './fakeBucket'
 
 export type FakeStrategyOptions = {
 	/** Total simulated duration, ms. @defaultValue 1600 */
@@ -8,6 +10,12 @@ export type FakeStrategyOptions = {
 	failWith?: string
 	/** Fail the first N attempts per file, then succeed — the retry demo. */
 	failTimes?: number
+	/**
+	 * Resolve keys through the registry and apply the scope's replace mode, so
+	 * a demo can show what the bucket really holds. Without it the strategy
+	 * invents a key and no sweep is ever visible.
+	 */
+	bucket?: { store: FakeBucket; scopes: ScopeRegistry<never> }
 }
 
 /**
@@ -18,6 +26,7 @@ export const createFakeStrategy = ({
 	duration = 1600,
 	failWith,
 	failTimes = 0,
+	bucket,
 }: FakeStrategyOptions = {}): UploadStrategy => {
 	const attempts = new Map<string, number>()
 
@@ -46,8 +55,15 @@ export const createFakeStrategy = ({
 						)
 						return
 					}
+					const written = bucket?.store.put(
+						bucket.scopes.get(scope),
+						scope,
+						entityId,
+						file
+					)
 					resolve({
-						key: `${scope}/${entityId}/${file.name}`,
+						key: written?.key ?? `${scope}/${entityId}/${file.name}`,
+						...(written ? { replaced: written.replaced } : {}),
 						url: URL.createObjectURL(file),
 						scope,
 						entityId,

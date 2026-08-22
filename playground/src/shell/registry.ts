@@ -9,6 +9,7 @@ import { FormExample } from '../examples/FormExample'
 import { GalleryExample } from '../examples/GalleryExample'
 import { HeadlessExample } from '../examples/HeadlessExample'
 import { MultipleExample } from '../examples/MultipleExample'
+import { ReplaceExample } from '../examples/ReplaceExample'
 import { ResolverExample } from '../examples/ResolverExample'
 import { RetryExample } from '../examples/RetryExample'
 import { SlottedExample } from '../examples/SlottedExample'
@@ -48,6 +49,12 @@ export const DEMO_GROUPS: DemoGroup[] = [
 				label: 'Múltiple',
 				blurb: 'Varios archivos, tope de maxFiles, abort por archivo.',
 				render: MultipleExample,
+			},
+			{
+				id: 'replace',
+				label: 'Replace',
+				blurb: 'Los tres modos lado a lado — qué barre cada scope y por qué.',
+				render: ReplaceExample,
 			},
 			{
 				id: 'form',
