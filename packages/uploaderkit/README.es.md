@@ -25,6 +25,7 @@ Scopes que ambos lados validan, un uploader headless con progreso / abort / comp
 - [Configuración de Tailwind v4](#configuración-de-tailwind-v4)
 - [Scopes — el contrato](#scopes--el-contrato)
   - [Definir scopes](#definir-scopes)
+  - [Replace — nunca dejar un archivo muerto](#replace--nunca-dejar-un-archivo-muerto)
 - [Cliente](#cliente)
   - [`useUploader`](#useuploader)
   - [Disparo de la subida — `select` vs `manual`](#disparo-de-la-subida--select-vs-manual)
@@ -187,7 +188,6 @@ export const scopes = defineScopes({
 		maxBytes: 5 * MB,
 		category: 'image',
 		compress: { maxWidth: 512, quality: 0.8, stripExif: true },
-		overwrite: true,
 	},
 })
 ```
@@ -201,11 +201,39 @@ export const scopes = defineScopes({
 | `category`   | `'image' \| 'pdf' \| 'document' \| 'data' \| 'video' \| 'audio' \| 'certificate' \| 'key' \| 'any'`. Elige el preset que decide si se leen los magic numbers. |
 | `encrypt`    | Entrega los bytes al cipher de la app antes de que salgan del servidor.                                                                                       |
 | `compress`   | Pipeline de imagen en el cliente: `maxWidth`, `maxHeight`, `quality`, `stripExif` (por defecto `true`).                                                       |
-| `overwrite`  | Reemplaza el objeto en la misma key en vez de agregar uno nuevo.                                                                                              |
+| `maxFiles`   | Cuántos archivos puede tener una entidad aquí. Default `1`; el uploader deriva `multiple` de esto.                                                            |
+| `replace`    | Qué borra una subida. Derivado por default — ver [Replace](#replace--nunca-dejar-un-archivo-muerto).                                                          |
+| `prefix`     | `(entityId) => string` — objetos que un replace `'entity'` puede borrar. Default: la carpeta de la key resuelta.                                              |
 | `metadata`   | Etiquetas libres que se reenvían al provider cuando las soporta.                                                                                              |
 
 `defineScopes` devuelve un `ScopeRegistry`: `names`, `get(name)`, `has(name)` y
 `accept(name)` — este último es el string listo para `<input accept>`.
+
+### Replace — nunca dejar un archivo muerto
+
+El object storage no limpia solo. Un scope cuya key incluye el nombre del
+archivo escribe un objeto NUEVO cada vez, así que re-subir un logo deja el
+anterior pagando renta para siempre. `replace` decide eso, y su default se
+deriva para que no haya prop que olvidar:
+
+| El scope                                          | `replace` derivado | Por qué                                                        |
+| ------------------------------------------------- | ------------------ | -------------------------------------------------------------- |
+| `maxFiles: 1` (default), la key lleva `file.name` | `'entity'`         | Cada subida cae en una key nueva — hay que barrer la anterior. |
+| `maxFiles: 1`, la key ignora `file.name`          | `'key'`            | La key es estable; el provider ya sobrescribe en su lugar.     |
+| `maxFiles > 1`                                    | `'key'`            | Es una colección: los hermanos son el punto.                   |
+
+Declararlo explícito solo sirve para salirse: `replace: false` conserva todas
+las versiones.
+
+El barrido `'entity'` corre **después** de un put exitoso y borra todo lo que
+esté bajo el prefijo de la entidad y no sea la key nueva. Dos guardas evitan
+que alcance de más, ambas al momento de `defineScopes`:
+
+- `replace: 'entity'` junto con `maxFiles > 1` truena. Un scope no puede
+  guardar una colección y borrarla en cada subida.
+- Dos scopes cuyas carpetas se solapan truenan si alguno barre, así que subir
+  un avatar nunca puede borrar los documentos del mismo usuario. Dale a cada
+  uno su carpeta, o acota uno con `prefix`.
 
 ---
 
@@ -690,17 +718,40 @@ const storage = createStorage({
 })
 ```
 
-| Método                                           | Responde                                                 |
-| ------------------------------------------------ | -------------------------------------------------------- |
-| `upload({ scope, entityId, file, uploadedBy })`  | El `StoredFile` que hay que persistir.                   |
-| `read({ scope, key })`                           | Bytes crudos, descifrados cuando el scope está cifrado.  |
-| `remove({ scope, key })`                         | `true` cuando el objeto existía.                         |
-| `signedUrl({ scope, key, download, expiresIn })` | Una URL fresca con expiración. Lanza en scopes públicos. |
-| `list(prefix)`                                   | `{ key, size }[]`.                                       |
+| Método                                           | Responde                                                        |
+| ------------------------------------------------ | --------------------------------------------------------------- |
+| `upload({ scope, entityId, file, uploadedBy })`  | Un `UploadResult`: el `StoredFile` a persistir, más `replaced`. |
+| `read({ scope, key })`                           | Bytes crudos, descifrados cuando el scope está cifrado.         |
+| `remove({ scope, key })`                         | `true` cuando el objeto existía.                                |
+| `signedUrl({ scope, key, download, expiresIn })` | Una URL fresca con expiración. Lanza en scopes públicos.        |
+| `list(prefix)`                                   | `{ key, size }[]`.                                              |
 
 La construcción es defensiva: un scope privado sobre un provider que no puede
 firmar, o un scope cifrado sin `crypto`, lanza un `ScopeError` **antes de la
 primera petición** — mientras el deploy todavía puede fallar en voz alta.
+
+#### Qué reemplazó una subida
+
+`upload()` responde un `UploadResult` — un `StoredFile` más las keys que el
+barrido eliminó:
+
+```ts
+const { key, url, replaced } = await storage.upload({ scope, entityId, file })
+
+// El bucket ya no las tiene. Lo que persististe también debe olvidarlas, o tu
+// UI sigue renderizando objetos que ya no existen.
+await db.files.deleteMany({ key: { $in: replaced } })
+```
+
+`replaced` viene vacío salvo que el scope resuelva a un replace `'entity'`, y
+solo lista lo que el provider confirmó borrado. El barrido corre **después** de
+un put exitoso — un fallo entre los dos dejaría a la entidad sin nada — y un
+delete que falla se traga: la subida que pidió quien llama sí ocurrió, y un
+objeto huérfano no vale fallarla.
+
+La `url` de un objeto público lleva una huella corta `?v=` de su contenido, así
+un scope de key estable (un avatar) deja de servir la imagen anterior desde un
+CDN o la caché del navegador después de sobrescribir.
 
 ### Express
 

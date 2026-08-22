@@ -25,6 +25,7 @@ Scopes both sides validate against, a headless uploader with progress / abort / 
 - [Tailwind v4 Setup](#tailwind-v4-setup)
 - [Scopes — the contract](#scopes--the-contract)
   - [Defining scopes](#defining-scopes)
+  - [Replace — never leave a dead file](#replace--never-leave-a-dead-file)
 - [Client](#client)
   - [`useUploader`](#useuploader)
   - [Upload trigger — `select` vs `manual`](#upload-trigger--select-vs-manual)
@@ -185,7 +186,6 @@ export const scopes = defineScopes({
 		maxBytes: 5 * MB,
 		category: 'image',
 		compress: { maxWidth: 512, quality: 0.8, stripExif: true },
-		overwrite: true,
 	},
 })
 ```
@@ -199,8 +199,54 @@ export const scopes = defineScopes({
 | `category`   | `'image' \| 'pdf' \| 'document' \| 'data' \| 'video' \| 'audio' \| 'certificate' \| 'key' \| 'any'`. Picks the preset that decides whether magic numbers are read. |
 | `encrypt`    | Hand the bytes to the app's cipher before they leave the server.                                                                                                   |
 | `compress`   | Client-side image pipeline: `maxWidth`, `maxHeight`, `quality`, `stripExif` (default `true`).                                                                      |
-| `overwrite`  | Replace the object at the same key instead of adding a new one.                                                                                                    |
+| `maxFiles`   | How many files one entity may hold here. Default `1`. The uploader derives `multiple` from it.                                                                     |
+| `replace`    | What an upload removes. Derived by default — see [Replace](#replace--never-leave-a-dead-file).                                                                     |
+| `prefix`     | `(entityId) => string` — objects an `'entity'` replace may delete. Defaults to the folder of the resolved key.                                                     |
 | `metadata`   | Free-form tags forwarded to the provider when it supports them.                                                                                                    |
+
+### Replace — never leave a dead file
+
+Object storage does not clean up after itself. A scope whose key carries the
+file name writes a NEW object every time, so re-uploading a logo leaves the
+previous one paying rent forever. `replace` is what decides that, and its
+default is derived so there is no prop to forget:
+
+| The scope                                        | Derived `replace` | Why                                                             |
+| ------------------------------------------------ | ----------------- | --------------------------------------------------------------- |
+| `maxFiles: 1` (default), key carries `file.name` | `'entity'`        | Every upload lands on a new key — the old object must be swept. |
+| `maxFiles: 1`, key ignores `file.name`           | `'key'`           | The key is stable, so the provider overwrites in place already. |
+| `maxFiles > 1`                                   | `'key'`           | A collection: siblings are the point.                           |
+
+Declare it explicitly only to opt out — `replace: false` keeps every version.
+
+The `'entity'` sweep runs **after** a successful put and deletes everything
+under the entity's prefix that is not the new key. Two guards keep it from
+reaching too far, both at `defineScopes` time:
+
+- `replace: 'entity'` together with `maxFiles > 1` throws. A scope cannot hold
+  a collection and erase it on every upload.
+- Two scopes whose folders overlap throw when either sweeps, so an avatar
+  upload can never delete the same user's documents. Give each its own folder,
+  or narrow one with `prefix`.
+
+```ts
+defineScopes({
+	// One file, swept: uploading `new.png` deletes `old.png`.
+	logo: { path: (id, file) => `Companies/${id}/logo/${file.name}` /* … */ },
+
+	// A collection: `maxFiles` alone switches the semantics.
+	expediente: {
+		path: (id, file) => `Companies/${id}/docs/${file.name}`,
+		maxFiles: 10 /* … */,
+	},
+
+	// Keeps every version on purpose.
+	audit: {
+		path: (id, file) => `Companies/${id}/audit/${file.name}`,
+		replace: false /* … */,
+	},
+})
+```
 
 `defineScopes` returns a `ScopeRegistry`: `names`, `get(name)`, `has(name)` and
 `accept(name)` — the last one being the ready-made string for `<input accept>`.
@@ -677,17 +723,40 @@ const storage = createStorage({
 })
 ```
 
-| Method                                           | Answers                                           |
-| ------------------------------------------------ | ------------------------------------------------- |
-| `upload({ scope, entityId, file, uploadedBy })`  | The `StoredFile` to persist.                      |
-| `read({ scope, key })`                           | Raw bytes, decrypted when the scope is encrypted. |
-| `remove({ scope, key })`                         | `true` when the object existed.                   |
-| `signedUrl({ scope, key, download, expiresIn })` | A fresh expiring URL. Throws on public scopes.    |
-| `list(prefix)`                                   | `{ key, size }[]`.                                |
+| Method                                           | Answers                                                          |
+| ------------------------------------------------ | ---------------------------------------------------------------- |
+| `upload({ scope, entityId, file, uploadedBy })`  | An `UploadResult`: the `StoredFile` to persist, plus `replaced`. |
+| `read({ scope, key })`                           | Raw bytes, decrypted when the scope is encrypted.                |
+| `remove({ scope, key })`                         | `true` when the object existed.                                  |
+| `signedUrl({ scope, key, download, expiresIn })` | A fresh expiring URL. Throws on public scopes.                   |
+| `list(prefix)`                                   | `{ key, size }[]`.                                               |
 
 Construction is defensive: a private scope riding a provider that cannot sign,
 or an encrypted scope without `crypto`, throws a `ScopeError` **before the
 first request** — while a deploy can still fail loudly.
+
+#### What an upload replaced
+
+`upload()` answers an `UploadResult` — a `StoredFile` plus the keys the sweep
+removed:
+
+```ts
+const { key, url, replaced } = await storage.upload({ scope, entityId, file })
+
+// The bucket no longer has these. Whatever you persisted must forget them too,
+// or your UI keeps rendering objects that are gone.
+await db.files.deleteMany({ key: { $in: replaced } })
+```
+
+`replaced` is empty unless the scope resolves to an `'entity'` replace, and it
+only lists what the provider confirmed deleted. The sweep runs **after** a
+successful put — a failure between the two would otherwise leave the entity
+with nothing — and a delete that fails is swallowed: the upload the caller
+asked for did happen, and a stale object is not worth failing it over.
+
+A public object's `url` carries a short `?v=` fingerprint of its content, so a
+stable-key scope (an avatar) does not keep serving the previous image from a
+CDN or the browser cache after an overwrite.
 
 ### Express
 
