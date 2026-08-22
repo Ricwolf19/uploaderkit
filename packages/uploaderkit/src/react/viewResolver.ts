@@ -3,21 +3,45 @@ export type BlobUrlResolverOptions = {
 	baseUrl: string
 	/** Evaluated per request, so a rotating JWT is read at fetch time. */
 	headers?: () => Record<string, string>
+	/**
+	 * Forwarded to `fetch` for urls the app owns. Cookie-session apps need
+	 * `'include'`: their api lives on a different origin than the SPA, so the
+	 * browser omits the session cookie under the default.
+	 *
+	 * @defaultValue `fetch`'s own (`'same-origin'`)
+	 */
+	credentials?: RequestCredentials
+}
+
+/**
+ * True when `baseUrl` serves this url: app-relative, or absolute on the same
+ * origin. The persisted url of an encrypted scope is whatever the server's
+ * `encryptedUrl` returned, which is commonly absolute — treating it as foreign
+ * would fetch the app's own authenticated endpoint with no credentials.
+ */
+const isOwnUrl = (url: string, baseUrl: string): boolean => {
+	if (url.startsWith('/')) return true
+	try {
+		return new URL(url).origin === new URL(baseUrl).origin
+	} catch {
+		return false
+	}
 }
 
 /**
  * The one rule both resolvers follow — a change to the `/view` shape lands
  * here, not once per output format.
  *
- * @see AGENTS.md §3 — why absolute urls must never carry the app's headers
+ * @see AGENTS.md §3 — why a foreign url must never carry the app's headers
  */
 const fetchStored = async (
 	url: string,
-	{ baseUrl, headers }: BlobUrlResolverOptions
+	{ baseUrl, headers, credentials }: BlobUrlResolverOptions
 ): Promise<Response> => {
+	const own = isOwnUrl(url, baseUrl)
 	const response = await fetch(
 		url.startsWith('/') ? `${baseUrl.replace(/\/$/, '')}${url}` : url,
-		url.startsWith('/') ? { headers: headers?.() } : undefined
+		own ? { headers: headers?.(), credentials } : undefined
 	)
 	if (!response.ok) {
 		throw new Error('No se pudo cargar el archivo')
@@ -27,17 +51,18 @@ const fetchStored = async (
 
 /**
  * `resolveUrl` for the FileViewer over authenticated endpoints. An `<img>` or
- * `<iframe>` cannot send an Authorization header, so protected content (the
- * decrypting `/view` route of encrypted scopes) is fetched here with the
- * app's headers and handed to the viewer as an object URL.
+ * `<iframe>` cannot send an Authorization header or a cross-site cookie, so
+ * protected content (the decrypting `/view` route of encrypted scopes) is
+ * fetched here with the app's credentials and handed to the viewer as an
+ * object URL.
  *
- * Absolute urls pass through untouched — public objects and legacy hosts
- * render directly. The viewer revokes the object URL when it closes.
+ * Urls on a foreign origin pass through untouched — public objects and legacy
+ * hosts render directly. The viewer revokes the object URL when it closes.
  */
 export const createBlobUrlResolver =
 	(options: BlobUrlResolverOptions) =>
 	async (file: { url: string }): Promise<string> => {
-		if (!file.url.startsWith('/')) return file.url
+		if (!isOwnUrl(file.url, options.baseUrl)) return file.url
 		return URL.createObjectURL(
 			await (await fetchStored(file.url, options)).blob()
 		)

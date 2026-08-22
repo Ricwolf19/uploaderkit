@@ -8,6 +8,14 @@ export type XhrUploadStrategyOptions = {
 	headers?: () => Record<string, string>
 	/** Multipart field name the server reads. @defaultValue 'file' */
 	fieldName?: string
+	/**
+	 * `'include'` sends the session cookie cross-origin, which a cookie-session
+	 * app needs: its api answers on a different origin than the SPA, and the
+	 * browser drops the cookie otherwise. Maps to `XMLHttpRequest.withCredentials`.
+	 *
+	 * @defaultValue 'same-origin'
+	 */
+	credentials?: RequestCredentials
 }
 
 /**
@@ -21,6 +29,7 @@ export const createXhrUploadStrategy =
 		endpoint,
 		headers,
 		fieldName = 'file',
+		credentials,
 	}: XhrUploadStrategyOptions): UploadStrategy =>
 	(file, scope, entityId, { onProgress, signal }) =>
 		new Promise<StoredFile>((resolve, reject) => {
@@ -28,6 +37,7 @@ export const createXhrUploadStrategy =
 			const url = `${endpoint.replace(/\/$/, '')}/${encodeURIComponent(scope)}/${encodeURIComponent(entityId)}/upload`
 			xhr.open('POST', url)
 			xhr.responseType = 'json'
+			xhr.withCredentials = credentials === 'include'
 			for (const [name, value] of Object.entries(headers?.() ?? {})) {
 				xhr.setRequestHeader(name, value)
 			}

@@ -40,12 +40,14 @@ describe('createBytesResolver', () => {
 		const fetchSpy = stub((url, init) => {
 			expect(url).toBe('https://api.example.com/storage/s/1/view?key=k')
 			expect(init?.headers).toEqual({ Authorization: 'Bearer t' })
+			expect(init?.credentials).toBe('include')
 		})
 		vi.stubGlobal('fetch', fetchSpy)
 
 		const resolve = createBytesResolver({
 			baseUrl: 'https://api.example.com/',
 			headers: () => ({ Authorization: 'Bearer t' }),
+			credentials: 'include',
 		})
 		expect(await resolve('/storage/s/1/view?key=k')).toEqual(bytes)
 		expect(fetchSpy).toHaveBeenCalledOnce()
@@ -53,7 +55,7 @@ describe('createBytesResolver', () => {
 
 	// A public object is already reachable; sending the JWT to a third party
 	// would leak it.
-	it('leaves an absolute url alone and sends no headers', async () => {
+	it('leaves a foreign url alone and sends no headers', async () => {
 		const fetchSpy = stub((url, init) => {
 			expect(url).toBe('https://cdn.example.com/a.pdf')
 			expect(init).toBeUndefined()
@@ -65,6 +67,26 @@ describe('createBytesResolver', () => {
 			headers: () => ({ Authorization: 'Bearer t' }),
 		})
 		expect(await resolve('https://cdn.example.com/a.pdf')).toEqual(bytes)
+	})
+
+	// What `encryptedUrl` returns is commonly absolute and points back at the
+	// app's own authenticated endpoint — fetching it bare answers 401.
+	it('credits an absolute url on the api origin as ours', async () => {
+		const fetchSpy = stub((url, init) => {
+			expect(url).toBe('https://api.example.com/storage/s/1/view?key=k')
+			expect(init?.headers).toEqual({ Authorization: 'Bearer t' })
+			expect(init?.credentials).toBe('include')
+		})
+		vi.stubGlobal('fetch', fetchSpy)
+
+		const resolve = createBytesResolver({
+			baseUrl: 'https://api.example.com',
+			headers: () => ({ Authorization: 'Bearer t' }),
+			credentials: 'include',
+		})
+		expect(
+			await resolve('https://api.example.com/storage/s/1/view?key=k')
+		).toEqual(bytes)
 	})
 
 	it('throws when the read fails', async () => {
