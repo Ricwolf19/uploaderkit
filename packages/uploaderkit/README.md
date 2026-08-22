@@ -391,6 +391,9 @@ const strategy = createXhrUploadStrategy({
 	// Evaluated per upload, so a rotating JWT is read at send time.
 	headers: () => ({ Authorization: `Bearer ${getToken()}` }),
 	fieldName: 'file',
+	// Cookie sessions: the api answers on another origin, so the browser drops
+	// the session cookie unless the request asks for it.
+	credentials: 'include',
 })
 ```
 
@@ -626,6 +629,7 @@ import {
 const resolveViewUrl = createBlobUrlResolver({
 	baseUrl: apiUrl,
 	headers: () => ({ Authorization: `Bearer ${getToken()}` }),
+	credentials: 'include',
 })
 
 <Uploader {...props} resolveViewUrl={resolveViewUrl} />
@@ -635,9 +639,12 @@ const readBytes = createBytesResolver({ baseUrl: apiUrl, headers })
 const pdf = await PDFDocument.load(await readBytes(stored.url))
 ```
 
-The rule both share: an **app-relative** url is yours and travels with your
-headers; anything **absolute** is already reachable and is fetched bare — the
-token must never go to a third-party host. Reading bytes through your own
+The rule both share is about **origin, not shape**: a url `baseUrl` serves —
+app-relative, or absolute on the same origin — is yours and travels with your
+headers and `credentials`; anything on a **foreign** origin is already
+reachable and is fetched bare, because the token must never go to a
+third-party host. Your server's `encryptedUrl` usually persists an absolute
+url pointing back at your own `/view` route: that one counts as yours. Reading bytes through your own
 endpoint is also what spares a public bucket its own CORS policy: an `<img>`
 is exempt from CORS, a `fetch` for bytes is not.
 

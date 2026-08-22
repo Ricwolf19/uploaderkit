@@ -377,6 +377,9 @@ const strategy = createXhrUploadStrategy({
 	// Se evalúa por subida, así un JWT rotativo se lee al momento de mandar.
 	headers: () => ({ Authorization: `Bearer ${getToken()}` }),
 	fieldName: 'file',
+	// Sesiones por cookie: la api responde en otro origen, así que el navegador
+	// descarta la cookie de sesión salvo que la petición la pida.
+	credentials: 'include',
 })
 ```
 
@@ -619,6 +622,7 @@ import {
 const resolveViewUrl = createBlobUrlResolver({
 	baseUrl: apiUrl,
 	headers: () => ({ Authorization: `Bearer ${getToken()}` }),
+	credentials: 'include',
 })
 
 <Uploader {...props} resolveViewUrl={resolveViewUrl} />
@@ -628,9 +632,12 @@ const readBytes = createBytesResolver({ baseUrl: apiUrl, headers })
 const pdf = await PDFDocument.load(await readBytes(stored.url))
 ```
 
-La regla que comparten: una url **relativa a la app** es tuya y viaja con tus
-headers; una **absoluta** ya es alcanzable y se pide pelada — el token nunca
-debe ir a un host de terceros. Leer los bytes por tu propio endpoint es además
+La regla que comparten es de **origen, no de forma**: una url que sirve
+`baseUrl` — relativa a la app, o absoluta en el mismo origen — es tuya y viaja
+con tus headers y tus `credentials`; una en un origen **ajeno** ya es
+alcanzable y se pide pelada, porque el token nunca debe ir a un host de
+terceros. El `encryptedUrl` de tu servidor normalmente persiste una url
+absoluta que apunta de vuelta a tu propia ruta `/view`: esa cuenta como tuya. Leer los bytes por tu propio endpoint es además
 lo que le ahorra a un bucket público su propia política de CORS: un `<img>`
 está exento de CORS, un `fetch` por bytes no.
 
