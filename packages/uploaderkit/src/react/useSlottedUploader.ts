@@ -1,9 +1,11 @@
 import { useCallback, useMemo, useRef } from 'react'
 
+import type { ExtendedScopeRegistry, ScopeConfig } from '../defineScopes'
+import { resolveReplaceMode } from '../defineScopes'
 import { getFileExtension, toAcceptAttribute } from '../file'
 import { resolveLabels, type UploaderLabels } from '../labels'
 import { ScopeError } from '../scopes'
-import type { FileExtension, ScopeConfig, ScopeRegistry } from '../types'
+import type { FileExtension } from '../types'
 import { warnDev } from '../warn'
 import {
 	matchSlotByExtension,
@@ -21,7 +23,7 @@ import {
 } from './useUploader'
 
 export type UseSlottedUploaderOptions<T extends Record<string, ScopeConfig>> = {
-	scopes: ScopeRegistry<T>
+	scopes: ExtendedScopeRegistry<T>
 	scope: keyof T & string
 	entityId: string
 	strategy?: UploadStrategy
@@ -108,6 +110,21 @@ export const useSlottedUploader = <T extends Record<string, ScopeConfig>>({
 			}
 			ids.add(slot.id)
 		}
+		// A slot per position means the scope holds several files at once, so a
+		// sweep would delete the sibling slots on every upload — silently, and
+		// only in production. Same tier as a duplicate slot id: it can never
+		// work, so it fails at import.
+		if (
+			slots.length > 1 &&
+			resolveReplaceMode(scopes.get(scope)) === 'entity'
+		) {
+			throw new ScopeError(
+				`useSlottedUploader: scope "${scope}" replaces per entity, so filling one of its ` +
+					`${slots.length} slots would delete the others. Declare "maxFiles" on the scope ` +
+					"(one per slot, at least), or set replace: 'key'."
+			)
+		}
+
 		const accepted = scopes.get(scope).accept
 		for (const slot of slots) {
 			const outside = slot.extensions.filter(

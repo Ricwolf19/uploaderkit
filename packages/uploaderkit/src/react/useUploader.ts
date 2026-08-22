@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import type { ExtendedScopeRegistry, ScopeConfig } from '../defineScopes'
 import { resolveLabels, type UploaderLabels } from '../labels'
 import { validateForScope } from '../scopes'
-import type { ScopeConfig, ScopeRegistry, StoredFile } from '../types'
+import type { StoredFile } from '../types'
 import { warnDev } from '../warn'
 import { compressImage } from './compressImage'
 import type { UploaderFile, UploadStrategy } from './types'
@@ -23,13 +24,18 @@ export type RetryOptions = {
 
 export type UseUploaderOptions<T extends Record<string, ScopeConfig>> = {
 	/** The app's registry — the same object the server authorizes against. */
-	scopes: ScopeRegistry<T>
+	scopes: ExtendedScopeRegistry<T>
 	scope: keyof T & string
 	/** Owner of the uploads (customerId, userId, …), forwarded to the strategy. */
 	entityId: string
 	/** Transport. Omit for local-only selection + validation (no `upload`). */
 	strategy?: UploadStrategy
+	/**
+	 * Overrides the arity derived from the scope's `maxFiles`. Rarely needed:
+	 * the registry is what the server validates against.
+	 */
 	multiple?: boolean
+	/** Overrides the scope's own `maxFiles`, downward. */
 	maxFiles?: number
 	/** @defaultValue 'manual' — the styled `Uploader` flips it to `'select'`. */
 	uploadOn?: UploadTrigger
@@ -153,8 +159,8 @@ export const useUploader = <T extends Record<string, ScopeConfig>>({
 	scope,
 	entityId,
 	strategy,
-	multiple = false,
-	maxFiles,
+	multiple: multipleOption,
+	maxFiles: maxFilesOption,
 	uploadOn = 'manual',
 	onUploadStart,
 	onUploaded,
@@ -164,6 +170,12 @@ export const useUploader = <T extends Record<string, ScopeConfig>>({
 	rename,
 	labels,
 }: UseUploaderOptions<T>): UseUploaderReturn => {
+	// Derived from the registry, never from the call site — see AGENTS.md §3.
+	// The props stay as a narrowing override.
+	const scopeMaxFiles = scopes.get(scope).maxFiles
+	const maxFiles = maxFilesOption ?? scopeMaxFiles
+	const multiple = multipleOption ?? (maxFiles !== undefined && maxFiles > 1)
+
 	const [files, setFiles] = useState<UploaderFile[]>([])
 	const controllers = useRef(new Map<string, AbortController>())
 	// Kept in a ref so `addFiles` → auto-upload reads the batch it just built,

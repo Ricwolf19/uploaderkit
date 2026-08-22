@@ -1,9 +1,10 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 
+import type { ScopeConfig } from '../defineScopes'
 import { resolveLabels } from '../labels'
 import type { UseUploaderOptions } from '../react'
 import { useUploader } from '../react'
-import type { ScopeConfig, StoredFile } from '../types'
+import type { StoredFile } from '../types'
 import { cn } from './cn'
 import { ConfirmDialog } from './ConfirmDialog'
 import { Dropzone } from './Dropzone'

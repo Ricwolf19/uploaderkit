@@ -3,7 +3,8 @@ import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { MB } from '../constants'
-import { defineScopes } from '../scopes'
+import { defineScopes, resolveReplaceMode } from '../defineScopes'
+import { ScopeError } from '../scopes'
 import type { StoredFile } from '../types'
 import {
 	matchSlotByExtension,
@@ -15,6 +16,9 @@ import { useSlottedUploader } from './useSlottedUploader'
 
 const scopes = defineScopes({
 	identity: {
+		// One file per slot: without this the scope sweeps per entity and each
+		// upload would delete the other slots.
+		maxFiles: 4,
 		path: (id, file) => `Companies/${id}/identity/${file.name}`,
 		visibility: 'public',
 		accept: ['pdf', 'png', 'svg'],
@@ -194,5 +198,66 @@ describe('useSlottedUploader', () => {
 		expect(result.current.slots[1]!.filled).toBeDefined()
 		act(() => result.current.removeSlot('logo'))
 		expect(onChange).toHaveBeenCalledWith([])
+	})
+})
+
+describe('useSlottedUploader — sweeping scopes', () => {
+	// The combination that silently deleted a company's letterhead when its
+	// logo was uploaded: a scope whose key carries the file name, no maxFiles,
+	// and more than one slot pointing at it.
+	const sweeping = defineScopes({
+		identity: {
+			path: (id, file) => `Co/${id}/identity/${file.name}`,
+			visibility: 'public',
+			accept: ['png', 'svg'],
+			maxBytes: MB,
+		},
+	})
+
+	it('refuses a scope that would sweep its own sibling slots', () => {
+		expect(resolveReplaceMode(sweeping.get('identity'))).toBe('entity')
+		expect(() =>
+			renderHook(() =>
+				useSlottedUploader({
+					scopes: sweeping,
+					scope: 'identity',
+					entityId: 'c1',
+					value: [],
+					onChange: () => {},
+					slots: [
+						{ id: 'logo', label: 'Logo', extensions: ['png'] },
+						{ id: 'isotype', label: 'Isotipo', extensions: ['svg'] },
+					],
+				})
+			)
+		).toThrow(ScopeError)
+	})
+
+	it('accepts the same scope once it declares its arity', () => {
+		const collection = defineScopes({
+			identity: {
+				maxFiles: 4,
+				path: (id, file) => `Co/${id}/identity/${file.name}`,
+				visibility: 'public',
+				accept: ['png', 'svg'],
+				maxBytes: MB,
+			},
+		})
+		expect(resolveReplaceMode(collection.get('identity'))).toBe('key')
+		expect(() =>
+			renderHook(() =>
+				useSlottedUploader({
+					scopes: collection,
+					scope: 'identity',
+					entityId: 'c1',
+					value: [],
+					onChange: () => {},
+					slots: [
+						{ id: 'logo', label: 'Logo', extensions: ['png'] },
+						{ id: 'isotype', label: 'Isotipo', extensions: ['svg'] },
+					],
+				})
+			)
+		).not.toThrow()
 	})
 })
