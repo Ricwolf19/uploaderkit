@@ -1,11 +1,13 @@
-import { type ReactNode, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 
 import type { ScopeConfig } from '../defineScopes'
 import { resolveLabels } from '../labels'
 import type { SlotState, UseSlottedUploaderOptions } from '../react'
 import { useSlottedUploader } from '../react'
+import { warnDev } from '../warn'
 import { cn } from './cn'
 import { ConfirmDialog } from './ConfirmDialog'
+import type { UiUploadTrigger, UploaderControllerRef } from './controller'
 import { Dropzone } from './Dropzone'
 import { FileViewer, type ViewableFile } from './FileViewer'
 import { UploadCloudIcon } from './icons'
@@ -18,38 +20,63 @@ type PendingAction =
 	| { kind: 'remove'; slot: SlotState }
 	| { kind: 'replace'; slot: SlotState; file: File }
 
-export type SlottedUploaderProps<T extends Record<string, ScopeConfig>> =
-	UseSlottedUploaderOptions<T> & {
-		title?: string
-		description?: string
-		/** Hide the bulk dropzone and keep only per-row buttons. */
-		hideDropzone?: boolean
-		/**
-		 * Gate removing a filled slot behind a confirmation dialog. `true` uses
-		 * the label defaults; an object overrides the copy.
-		 */
-		confirmRemove?: boolean | { title?: string; message?: string }
-		/**
-		 * Confirm before a picked file replaces what a slot already holds. The
-		 * dialog names both files, so the user sees what is about to be lost.
-		 */
-		confirmReplace?: boolean | { title?: string; message?: string }
-		/** Fresh URL right before previewing — for private scopes whose signed url expired. */
-		resolveViewUrl?: (file: ViewableFile) => Promise<string>
-		/** Compact paddings and glyphs everywhere. @defaultValue 'md' */
-		size?: 'sm' | 'md'
-		/** Glyph inside the bulk dropzone. `null` removes it. */
-		icon?: ReactNode
-		/** Keyboard shortcut that opens the bulk picker, e.g. `'mod+u'`. */
-		shortcut?: string
-		className?: string
-	}
+export type SlottedUploaderProps<T extends Record<string, ScopeConfig>> = Omit<
+	UseSlottedUploaderOptions<T>,
+	'uploadOn'
+> & {
+	/**
+	 * When the slots travel. This presentation has no upload button of its
+	 * own, so `'manual'` is not offered here: staged slots can only leave
+	 * through a form's `controllerRef`, which is `'submit'`.
+	 * @defaultValue 'select'
+	 * @see UiUploadTrigger
+	 */
+	uploadOn?: Exclude<UiUploadTrigger, 'manual'>
+	title?: string
+	description?: string
+	/** Hide the bulk dropzone and keep only per-row buttons. */
+	hideDropzone?: boolean
+	/**
+	 * Gate removing a filled slot behind a confirmation dialog. `true` uses
+	 * the label defaults; an object overrides the copy.
+	 */
+	confirmRemove?: boolean | { title?: string; message?: string }
+	/**
+	 * Confirm before a picked file replaces what a slot already holds. The
+	 * dialog names both files, so the user sees what is about to be lost.
+	 */
+	confirmReplace?: boolean | { title?: string; message?: string }
+	/** Fresh URL right before previewing — for private scopes whose signed url expired. */
+	resolveViewUrl?: (file: ViewableFile) => Promise<string>
+	/** Compact paddings and glyphs everywhere. @defaultValue 'md' */
+	size?: 'sm' | 'md'
+	/** Glyph inside the bulk dropzone. `null` removes it. */
+	icon?: ReactNode
+	/** Keyboard shortcut that opens the bulk picker, e.g. `'mod+u'`. */
+	shortcut?: string
+	/**
+	 * Filled with the live controller so the surrounding form can send the
+	 * staged slots from its own submit. Required by `uploadOn: 'submit'`:
+	 * without it a staged slot has no way to ever leave.
+	 */
+	controllerRef?: UploaderControllerRef<void>
+	/**
+	 * Fires when the zone starts or stops holding files that `upload()`
+	 * would send. The companion of `controllerRef`: a form that defers the
+	 * send has no other way to know it has unsent work, so its save button
+	 * would stay disabled on a pristine form the user has just dropped a
+	 * file into.
+	 */
+	onPendingChange?: (hasPending: boolean) => void
+	className?: string
+}
 
 /**
  * Named-slot presentation over the same machine as `Uploader`: a status row
  * per slot plus one bulk dropzone whose matcher routes each file to its slot.
  */
 export const SlottedUploader = <T extends Record<string, ScopeConfig>>({
+	uploadOn = 'select',
 	title,
 	description,
 	hideDropzone = false,
@@ -59,14 +86,39 @@ export const SlottedUploader = <T extends Record<string, ScopeConfig>>({
 	size = 'md',
 	icon,
 	shortcut,
+	controllerRef,
+	onPendingChange,
 	className,
 	...options
 }: SlottedUploaderProps<T>) => {
-	const slotted = useSlottedUploader(options)
+	const slotted = useSlottedUploader({
+		...options,
+		uploadOn: uploadOn === 'select' ? 'select' : 'manual',
+	})
+
+	if (uploadOn === 'submit' && !controllerRef) {
+		warnDev(
+			'slotted-submit-without-controller',
+			"uploadOn: 'submit' has no send of its own here — pass `controllerRef` and call upload() from the form's submit, or staged slots never leave."
+		)
+	}
 	const copy = useMemo(() => resolveLabels(options.labels), [options.labels])
 	const coarse = useCoarsePointer()
 	const viewer = useFileViewer({ resolveUrl: resolveViewUrl })
 	const [pending, setPending] = useState<PendingAction | null>(null)
+
+	const { upload, hasPending, isUploading } = slotted
+	useEffect(() => {
+		if (!controllerRef) return
+		controllerRef.current = { upload, hasPending, isUploading }
+		return () => {
+			controllerRef.current = null
+		}
+	}, [controllerRef, upload, hasPending, isUploading])
+
+	useEffect(() => {
+		onPendingChange?.(hasPending)
+	}, [onPendingChange, hasPending])
 
 	const pick = (slot: SlotState, file: File) => {
 		if (slot.filled && confirmReplace) {

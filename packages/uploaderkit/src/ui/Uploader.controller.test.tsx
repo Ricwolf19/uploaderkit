@@ -1,0 +1,166 @@
+// @vitest-environment happy-dom
+import { act, fireEvent, render, waitFor } from '@testing-library/react'
+import { createRef } from 'react'
+import { describe, expect, it, vi } from 'vitest'
+
+import { defineScopes } from '../defineScopes'
+import { MB } from '../index'
+import type { StoredFile } from '../types'
+import type { UploaderController } from './controller'
+import { Uploader } from './Uploader'
+
+const scopes = defineScopes({
+	docs: {
+		path: (entityId, file) => `Docs/${entityId}/${file.name}`,
+		visibility: 'private',
+		accept: ['pdf'],
+		maxBytes: 5 * MB,
+	},
+})
+
+const stored = (name: string): StoredFile => ({
+	key: `Docs/e1/${name}`,
+	url: `/view?key=Docs/e1/${name}`,
+	scope: 'docs',
+	entityId: 'e1',
+	fileName: name,
+	mimeType: 'application/pdf',
+	size: 3,
+	uploadedAt: 0,
+})
+
+// A pdf whose magic number matches, or validation rejects it before the
+// strategy is ever reached.
+const pdf = (name: string) =>
+	new File([new Uint8Array([0x25, 0x50, 0x44, 0x46])], name, {
+		type: 'application/pdf',
+	})
+
+const renderWithController = () => {
+	const controllerRef = createRef<UploaderController | null>() as {
+		current: UploaderController | null
+	}
+	const strategy = vi.fn(async (file: File) => stored(file.name))
+	const onUploaded = vi.fn()
+
+	const { container, queryByText } = render(
+		<Uploader
+			scopes={scopes}
+			scope='docs'
+			entityId='e1'
+			strategy={strategy}
+			uploadOn='submit'
+			controllerRef={controllerRef}
+			onUploaded={onUploaded}
+		/>
+	)
+
+	return {
+		controllerRef,
+		strategy,
+		onUploaded,
+		queryByText,
+		input: container.querySelector('input')!,
+	}
+}
+
+describe('Uploader controllerRef', () => {
+	it('holds the batch until the form asks for it', async () => {
+		const { controllerRef, strategy, onUploaded, input } =
+			renderWithController()
+
+		await act(async () => {
+			fireEvent.change(input, { target: { files: [pdf('acta.pdf')] } })
+		})
+
+		// `uploadOn: 'manual'` — picking a file must not send it.
+		expect(strategy).not.toHaveBeenCalled()
+		await waitFor(() => expect(controllerRef.current?.hasPending).toBe(true))
+
+		await act(async () => {
+			await controllerRef.current?.upload()
+		})
+
+		expect(strategy).toHaveBeenCalledOnce()
+		expect(onUploaded).toHaveBeenCalledWith([
+			expect.objectContaining({ fileName: 'acta.pdf' }),
+		])
+	})
+
+	// Two ways to send the same batch is one too many, and the form's is the
+	// one that knows whether the rest of the fields are valid.
+	it('renders no upload button under submit mode', async () => {
+		const { queryByText, input } = renderWithController()
+
+		await act(async () => {
+			fireEvent.change(input, { target: { files: [pdf('acta.pdf')] } })
+		})
+
+		expect(queryByText('Subir archivos')).toBeNull()
+	})
+
+	// A form that defers the send has no other way to know it has unsent work.
+	it('reports staged work so the form can enable its save button', async () => {
+		const onPendingChange = vi.fn()
+		const { container } = render(
+			<Uploader
+				scopes={scopes}
+				scope='docs'
+				entityId='e1'
+				strategy={async file => stored(file.name)}
+				uploadOn='submit'
+				onPendingChange={onPendingChange}
+			/>
+		)
+
+		expect(onPendingChange).toHaveBeenLastCalledWith(false)
+
+		await act(async () => {
+			fireEvent.change(container.querySelector('input')!, {
+				target: { files: [pdf('acta.pdf')] },
+			})
+		})
+
+		await waitFor(() => expect(onPendingChange).toHaveBeenLastCalledWith(true))
+	})
+
+	// Option 3 of the contract: the zone owns the send.
+	it('keeps its own upload button under manual mode', async () => {
+		const { container, queryByText } = render(
+			<Uploader
+				scopes={scopes}
+				scope='docs'
+				entityId='e1'
+				strategy={async file => stored(file.name)}
+				uploadOn='manual'
+			/>
+		)
+
+		await act(async () => {
+			fireEvent.change(container.querySelector('input')!, {
+				target: { files: [pdf('acta.pdf')] },
+			})
+		})
+
+		await waitFor(() => expect(queryByText('Subir archivos')).not.toBeNull())
+	})
+
+	it('clears the ref on unmount', () => {
+		const controllerRef: { current: UploaderController | null } = {
+			current: null,
+		}
+		const { unmount } = render(
+			<Uploader
+				scopes={scopes}
+				scope='docs'
+				entityId='e1'
+				uploadOn='submit'
+				controllerRef={controllerRef}
+			/>
+		)
+
+		expect(controllerRef.current).not.toBeNull()
+		unmount()
+		expect(controllerRef.current).toBeNull()
+	})
+})

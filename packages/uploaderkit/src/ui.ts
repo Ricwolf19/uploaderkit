@@ -9,6 +9,12 @@
 
 export { cn } from './ui/cn'
 export { ConfirmDialog, type ConfirmDialogProps } from './ui/ConfirmDialog'
+export {
+	type SlottedUploaderController,
+	type UiUploadTrigger,
+	type UploaderController,
+	type UploaderControllerRef,
+} from './ui/controller'
 export { Dropzone, type DropzoneProps } from './ui/Dropzone'
 export { FileItem, type FileItemProps } from './ui/FileItem'
 export {
