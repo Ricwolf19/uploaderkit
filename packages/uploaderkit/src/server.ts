@@ -13,4 +13,5 @@ export {
 	StorageRequestError,
 	type StorageService,
 	type UploadInput,
+	type UploadResult,
 } from './server/storage'

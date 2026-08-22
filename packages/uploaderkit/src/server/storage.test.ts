@@ -151,7 +151,10 @@ describe('createStorage — upload', () => {
 			file: fileOf('me.png', PNG_HEADER),
 		})
 
-		expect(stored.url).toBe('memory://Users/u1/avatar')
+		// The public url carries a content-derived token: the key is stable, so
+		// without it a re-upload of the same name would keep serving the cached
+		// bytes forever.
+		expect(stored.url).toMatch(/^memory:\/\/Users\/u1\/avatar\?v=[0-9a-f]{16}$/)
 		const object = provider.objects.get('Users/u1/avatar')!
 		expect([...object.body]).toEqual(PNG_HEADER)
 		expect(object.contentType).toBe('image/png')
@@ -210,5 +213,151 @@ describe('createStorage — signed urls and deletion', () => {
 			storage.remove({ scope: 'company-documents', key: stored.key })
 		).resolves.toBe(true)
 		expect(provider.objects.has(stored.key)).toBe(false)
+	})
+})
+
+describe('replace', () => {
+	const scopes = defineScopes({
+		// Key carries the file name and holds one file: every upload must leave
+		// the folder with exactly the object just written.
+		logo: {
+			path: (id: string, file: FileLike) => `Entities/${id}/logo/${file.name}`,
+			visibility: 'public',
+			accept: ['png'],
+			maxBytes: 1024 * 1024,
+		},
+		// A collection: the file name is part of the key on purpose.
+		expediente: {
+			path: (id: string, file: FileLike) =>
+				`Entities/${id}/expediente/${file.name}`,
+			visibility: 'public',
+			accept: ['pdf'],
+			maxBytes: 1024 * 1024,
+			maxFiles: 10,
+		},
+	})
+
+	const storageOf = () =>
+		createStorage({ scopes, provider: createMemoryProvider() })
+
+	it('leaves no orphan when the file name changes', async () => {
+		const storage = storageOf()
+		await storage.upload({
+			scope: 'logo',
+			entityId: 'e1',
+			file: fileOf('old.png', PNG_HEADER),
+		})
+		await storage.upload({
+			scope: 'logo',
+			entityId: 'e1',
+			file: fileOf('new.png', PNG_HEADER),
+		})
+
+		const stored = await storage.list('Entities/e1/logo')
+		expect(stored.map(object => object.key)).toEqual([
+			'Entities/e1/logo/new.png',
+		])
+	})
+
+	it('never reaches another entity', async () => {
+		const storage = storageOf()
+		await storage.upload({
+			scope: 'logo',
+			entityId: 'e1',
+			file: fileOf('a.png', PNG_HEADER),
+		})
+		await storage.upload({
+			scope: 'logo',
+			entityId: 'e2',
+			file: fileOf('b.png', PNG_HEADER),
+		})
+
+		expect(await storage.list('Entities/e1/logo')).toHaveLength(1)
+		expect(await storage.list('Entities/e2/logo')).toHaveLength(1)
+	})
+
+	it('never reaches a sibling scope of the same entity', async () => {
+		const storage = storageOf()
+		await storage.upload({
+			scope: 'expediente',
+			entityId: 'e1',
+			file: fileOf('acta.pdf', PDF_HEADER),
+		})
+		await storage.upload({
+			scope: 'logo',
+			entityId: 'e1',
+			file: fileOf('logo.png', PNG_HEADER),
+		})
+
+		expect(await storage.list('Entities/e1/expediente')).toHaveLength(1)
+	})
+
+	it('reports the keys it removed so the app can drop them', async () => {
+		const storage = storageOf()
+		const first = await storage.upload({
+			scope: 'logo',
+			entityId: 'e1',
+			file: fileOf('old.png', PNG_HEADER),
+		})
+		expect(first.replaced).toEqual([])
+
+		const second = await storage.upload({
+			scope: 'logo',
+			entityId: 'e1',
+			file: fileOf('new.png', PNG_HEADER),
+		})
+		expect(second.replaced).toEqual(['Entities/e1/logo/old.png'])
+	})
+
+	it('replaces the bytes when the same name carries new content', async () => {
+		const storage = storageOf()
+		const original = await storage.upload({
+			scope: 'logo',
+			entityId: 'e1',
+			file: fileOf('avatar.png', PNG_HEADER),
+		})
+		const recropped = await storage.upload({
+			scope: 'logo',
+			entityId: 'e1',
+			file: fileOf('avatar.png', [...PNG_HEADER, 0x01, 0x02, 0x03]),
+		})
+
+		// One object, same key — and a URL that changed, or every browser and
+		// CDN would keep serving the first crop.
+		expect(await storage.list('Entities/e1/logo')).toHaveLength(1)
+		expect(recropped.key).toBe(original.key)
+		expect(recropped.checksum).not.toBe(original.checksum)
+		expect(recropped.url).not.toBe(original.url)
+	})
+
+	it('keeps the URL stable when the content did not change', async () => {
+		const storage = storageOf()
+		const first = await storage.upload({
+			scope: 'logo',
+			entityId: 'e1',
+			file: fileOf('avatar.png', PNG_HEADER),
+		})
+		const again = await storage.upload({
+			scope: 'logo',
+			entityId: 'e1',
+			file: fileOf('avatar.png', PNG_HEADER),
+		})
+		expect(again.url).toBe(first.url)
+	})
+
+	it('accumulates in a collection scope', async () => {
+		const storage = storageOf()
+		await storage.upload({
+			scope: 'expediente',
+			entityId: 'e1',
+			file: fileOf('a.pdf', PDF_HEADER),
+		})
+		await storage.upload({
+			scope: 'expediente',
+			entityId: 'e1',
+			file: fileOf('b.pdf', PDF_HEADER),
+		})
+
+		expect(await storage.list('Entities/e1/expediente')).toHaveLength(2)
 	})
 })

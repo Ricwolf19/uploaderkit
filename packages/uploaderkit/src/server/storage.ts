@@ -1,3 +1,5 @@
+import type { ExtendedScopeRegistry, ScopeConfig } from '../defineScopes'
+import { resolveReplaceMode, resolveScopePrefix } from '../defineScopes'
 import {
 	assertProviderSupports,
 	resolveKey,
@@ -7,12 +9,11 @@ import {
 import type {
 	CryptoHooks,
 	FileLike,
-	ScopeConfig,
-	ScopeRegistry,
 	SignedUrlOptions,
 	StorageProvider,
 	StoredFile,
 } from '../types'
+
 /**
  * A request-level failure: bad file, unknown scope name from a URL, missing
  * part. Carries the HTTP status and a message safe to show the user — unlike
@@ -29,7 +30,7 @@ export class StorageRequestError extends Error {
 }
 
 export type CreateStorageOptions<T extends Record<string, ScopeConfig>> = {
-	scopes: ScopeRegistry<T>
+	scopes: ExtendedScopeRegistry<T>
 	provider: StorageProvider
 	/** Required when any scope declares `encrypt`. The app owns the cipher. */
 	crypto?: CryptoHooks
@@ -55,10 +56,17 @@ export type UploadInput = {
 	uploadedBy?: string
 }
 
+/**
+ * A stored file plus the keys the upload removed. `replaced` is empty unless
+ * the scope sweeps per entity; when it is not, the app must drop those keys
+ * from whatever it persisted, or it keeps rendering objects that are gone.
+ */
+export type UploadResult = StoredFile & { replaced: string[] }
+
 export type StorageService<
 	T extends Record<string, ScopeConfig> = Record<string, ScopeConfig>,
 > = {
-	upload(input: UploadInput): Promise<StoredFile>
+	upload(input: UploadInput): Promise<UploadResult>
 	/** Raw bytes, decrypted when the scope is encrypted. */
 	read(input: { scope: string; key: string }): Promise<Uint8Array>
 	remove(input: { scope: string; key: string }): Promise<boolean>
@@ -70,7 +78,7 @@ export type StorageService<
 		expiresIn?: number
 	}): Promise<string>
 	list(prefix: string): Promise<{ key: string; size: number }[]>
-	scopes: ScopeRegistry<T>
+	scopes: ExtendedScopeRegistry<T>
 }
 
 const toHex = (buffer: ArrayBuffer): string =>
@@ -116,7 +124,7 @@ export const createStorage = <T extends Record<string, ScopeConfig>>({
 		entityId,
 		file,
 		uploadedBy,
-	}: UploadInput): Promise<StoredFile> => {
+	}: UploadInput): Promise<UploadResult> => {
 		const scope = getScope(name)
 
 		// The client already validated; running the same function again here is
@@ -141,19 +149,50 @@ export const createStorage = <T extends Record<string, ScopeConfig>>({
 			metadata: scope.metadata,
 		})
 
+		// Orphan sweep AFTER a successful put: the new object must exist before
+		// anything is deleted, or a failure between the two leaves the entity
+		// with nothing. Delete failures are swallowed on purpose — the upload
+		// the caller asked for did happen, and a stale object is not worth
+		// failing it over.
+		const replaced: string[] = []
+		if (resolveReplaceMode(scope) === 'entity') {
+			const prefix = resolveScopePrefix(scope, entityId)
+			const stale = (await provider.list(prefix)).filter(
+				object => object.key !== put.key
+			)
+			await Promise.all(
+				stale.map(object =>
+					provider
+						.delete(object.key)
+						// Only what the provider confirmed gone: `replaced` is what
+						// the app drops from its own records.
+						.then(deleted => {
+							if (deleted) replaced.push(object.key)
+						})
+						.catch(() => undefined)
+				)
+			)
+		}
+
+		const contentChecksum = put.checksum ?? checksum
+		const publicUrl = put.url
+			? `${put.url}${put.url.includes('?') ? '&' : '?'}v=${contentChecksum.slice(0, 16)}`
+			: put.url
+
 		return {
 			key: put.key,
+			replaced,
 			url: scope.encrypt
 				? encryptedUrl!({ scope: name, entityId, key: put.key })
 				: scope.visibility === 'private'
 					? await provider.signedUrl!(put.key, { expiresIn: signedUrlTtl })
-					: put.url,
+					: publicUrl,
 			scope: name,
 			entityId,
 			fileName: file.name,
 			mimeType: file.type,
 			size: file.size,
-			checksum: put.checksum ?? checksum,
+			checksum: contentChecksum,
 			uploadedAt: Date.now(),
 			...(uploadedBy ? { uploadedBy } : {}),
 		}
