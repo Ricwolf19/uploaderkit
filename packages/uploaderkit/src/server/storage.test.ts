@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import { createMemoryProvider } from '../adapters/memory'
 import { MB } from '../constants'
+import { defineScopes } from '../defineScopes'
 import { getMimeType } from '../file'
 import { ScopeError } from '../scopes'
-import { defineScopes } from '../scopes'
 import type { CryptoHooks, FileLike } from '../types'
 import { createStorage, StorageRequestError } from './storage'
 
@@ -21,6 +21,7 @@ const testScopes = defineScopes({
 		compress: { maxWidth: 512, quality: 0.8, stripExif: true },
 	},
 	'user-documents': {
+		maxFiles: 10,
 		path: (userId, file) => `Users/${userId}/documents/${file.name}`,
 		visibility: 'private',
 		accept: ['pdf'],
@@ -29,6 +30,7 @@ const testScopes = defineScopes({
 		encrypt: true,
 	},
 	'company-identity': {
+		maxFiles: 8,
 		path: (companyId, file) => `Companies/${companyId}/identity/${file.name}`,
 		visibility: 'public',
 		accept: ['png', 'jpg', 'jpeg', 'webp', 'svg'],
@@ -36,6 +38,7 @@ const testScopes = defineScopes({
 		category: 'image',
 	},
 	'company-documents': {
+		maxFiles: 10,
 		path: (companyId, file) => `Companies/${companyId}/documents/${file.name}`,
 		visibility: 'private',
 		accept: ['pdf'],

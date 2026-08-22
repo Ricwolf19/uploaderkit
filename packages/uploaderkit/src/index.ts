@@ -32,7 +32,6 @@ export {
 } from './labels'
 export {
 	assertProviderSupports,
-	defineScopes,
 	resolveKey,
 	ScopeError,
 	validateForScope,
@@ -52,7 +51,6 @@ export type {
 	KeyExtension,
 	ProviderCapabilities,
 	PutInput,
-	ScopeConfig,
 	ScopeRegistry,
 	SignedUrlOptions,
 	StorageProvider,
@@ -72,3 +70,16 @@ export {
 	validateMagicNumbers,
 	validateSize,
 } from './validation'
+// Declared after the block above on purpose: a later export shadows an
+// earlier one, so `defineScopes` and `ScopeConfig` resolve to the versions
+// that understand `maxFiles` / `replace`. They compose with the base
+// validations rather than reimplementing them (invariant §4.1).
+export {
+	defineScopes,
+	type ExtendedScopeRegistry,
+	hasStableKey,
+	type ReplaceMode,
+	resolveReplaceMode,
+	resolveScopePrefix,
+	type ScopeConfig,
+} from './defineScopes'
