@@ -13,6 +13,7 @@ import { ReplaceExample } from '../examples/ReplaceExample'
 import { ResolverExample } from '../examples/ResolverExample'
 import { RetryExample } from '../examples/RetryExample'
 import { SlottedExample } from '../examples/SlottedExample'
+import { SlottedSubmitExample } from '../examples/SlottedSubmitExample'
 import { ValidationExample } from '../examples/ValidationExample'
 
 export type Demo = {
@@ -78,6 +79,12 @@ export const DEMO_GROUPS: DemoGroup[] = [
 				label: 'Slots con nombre',
 				blurb: 'Un documento por posición; el drop masivo rutea solo.',
 				render: SlottedExample,
+			},
+			{
+				id: 'slotted-submit',
+				label: 'Slots con submit',
+				blurb: 'El archivo espera en su fila hasta que el formulario guarda.',
+				render: SlottedSubmitExample,
 			},
 		],
 	},

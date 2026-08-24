@@ -587,9 +587,16 @@ import { SlottedUploader } from 'uploaderkit/ui'
 ```
 
 `confirmReplace` intercepta el archivo elegido _después_ del pick — así el
-diálogo puede nombrar qué está por perderse y qué lo reemplaza. Ambas props
-aceptan `true` para el copy por defecto o `{ title, message }` para
-sobrescribirlo.
+diálogo puede nombrar lo que se va a perder y lo que lo reemplaza. Ambas props
+aceptan `true` para la copia por defecto o `{ title, message }` para
+sobrescribirla.
+
+**Filas en espera.** Con `uploadOn: 'submit'` el archivo elegido no viaja:
+descansa en su fila con miniatura, nombre y _listo para subir_, más Reemplazar y
+Quitar, hasta que el formulario llama a `controllerRef.current.upload()`. El
+punto de estado se pone ámbar para decirlo. El nombre que se muestra es el de
+almacenamiento — el archivo se renombra a `{slot}.{ext}` antes de entrar a la
+máquina, y es el que la entidad va a servir.
 
 ### Confirmaciones
 

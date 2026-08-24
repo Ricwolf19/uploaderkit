@@ -596,6 +596,13 @@ import { SlottedUploader } from 'uploaderkit/ui'
 then name what is about to be lost and what replaces it. Both props take
 `true` for the default copy or `{ title, message }` to override it.
 
+**Staged rows.** Under `uploadOn: 'submit'` a pick does not travel: it rests on
+its own row with a thumbnail, its name and _ready to upload_, plus Replace and
+Remove, until the form calls `controllerRef.current.upload()`. The status dot
+turns amber to say so. The name shown is the storage one — the file is renamed
+to `{slot}.{ext}` before it enters the machine, which is what the entity will
+actually serve.
+
 ### Confirmations
 
 Destructive file actions get a second step: an accessible dialog (portal,
