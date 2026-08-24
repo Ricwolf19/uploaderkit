@@ -25,6 +25,12 @@ export type UploaderLabels = {
 	cancel: string
 	/** Suffix on a row the server confirmed. */
 	ready: string
+	/**
+	 * Suffix on a row holding a picked file that has NOT been sent yet.
+	 * Distinct from {@link UploaderLabels.ready}, which means the server
+	 * confirmed it — two states, two strings.
+	 */
+	staged: string
 	/** Slot action when the position is empty. */
 	upload: string
 	/** Slot action when the position is filled. */
@@ -85,6 +91,7 @@ export const DEFAULT_LABELS: UploaderLabels = {
 	remove: 'Quitar',
 	cancel: 'Cancelar',
 	ready: 'Listo',
+	staged: 'Listo para subir',
 	upload: 'Subir',
 	replace: 'Reemplazar',
 	dropToReplace: 'Suelta para reemplazar',
@@ -126,6 +133,7 @@ export const EN_LABELS: UploaderLabels = {
 	remove: 'Remove',
 	cancel: 'Cancel',
 	ready: 'Done',
+	staged: 'Ready to upload',
 	upload: 'Upload',
 	replace: 'Replace',
 	dropToReplace: 'Drop to replace',

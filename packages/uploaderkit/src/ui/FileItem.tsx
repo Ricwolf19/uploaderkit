@@ -56,6 +56,7 @@ export const FileItem = ({
 					<p className='text-ui-muted text-xs'>
 						{formatFileSize(file.file.size)}
 						{file.status === 'success' && ` · ${copy.ready}`}
+						{file.status === 'idle' && ` · ${copy.staged}`}
 					</p>
 				)}
 				{uploading && <ProgressBar percent={file.progress} />}

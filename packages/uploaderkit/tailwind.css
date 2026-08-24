@@ -54,6 +54,10 @@
 	--color-ui-success: #16a34a;
 	--color-ui-success-soft: #f0fdf4;
 
+	/* Semantic — warning */
+	--color-ui-warning: #d97706;
+	--color-ui-warning-soft: #fffbeb;
+
 	/* Overlay scrim behind the viewer and dialogs */
 	--color-ui-overlay: oklch(0.28 0.03 265 / 0.45);
 

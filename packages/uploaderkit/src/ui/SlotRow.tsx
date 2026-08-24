@@ -1,8 +1,10 @@
 import { type DragEvent, useRef, useState } from 'react'
 
+import { formatFileSize } from '../file'
 import { resolveLabels, type UploaderLabels } from '../labels'
 import type { SlotState } from '../react'
 import { cn } from './cn'
+import { FileTypeBadge } from './FileTypeBadge'
 import { ProgressBar } from './ProgressBar'
 
 export type SlotRowProps = {
@@ -18,9 +20,13 @@ export type SlotRowProps = {
 }
 
 /**
- * One named position of a `SlottedUploader`: a status dot, the slot's label,
- * whatever occupies it (persisted file, upload in flight, or the accepted
- * formats), and the actions for that state.
+ * One named position of a `SlottedUploader`: a status dot, a thumbnail, the
+ * slot's label, whatever occupies it, and the actions for that state.
+ *
+ * @remarks
+ * Four occupancies, not two: under `uploadOn: 'submit'` a picked file waits at
+ * `idle` in `pending` with no `filled`, and a row branching on `filled` alone
+ * rendered it as an empty slot — with no way to undo the pick.
  */
 export const SlotRow = ({
 	slot,
@@ -38,6 +44,9 @@ export const SlotRow = ({
 	const depth = useRef(0)
 	const { definition, filled, pending } = slot
 	const uploading = pending?.status === 'uploading'
+	/** Picked but not sent yet — the `uploadOn: 'submit'` resting state. */
+	const staged = pending?.status === 'idle'
+	const occupied = Boolean(filled) || staged
 	const droppable = !uploading
 
 	// The row itself is a drop target: dragging a file over a filled slot
@@ -82,18 +91,37 @@ export const SlotRow = ({
 			<span
 				className={cn(
 					'h-2.5 w-2.5 shrink-0 rounded-full transition-colors',
-					filled
-						? 'bg-ui-success'
+					pending?.status === 'error'
+						? 'bg-ui-danger'
 						: uploading
 							? 'bg-ui-primary animate-pulse'
-							: 'bg-ui-border-strong'
+							: staged
+								? 'bg-ui-warning'
+								: filled
+									? 'bg-ui-success'
+									: 'bg-ui-border-strong'
 				)}
+			/>
+
+			{/* Reserved in every state, so picking a file does not change the
+			    row's height. */}
+			<FileTypeBadge
+				fileName={pending?.file.name ?? filled?.stored.fileName}
+				preview={pending?.preview}
+				size={size}
 			/>
 
 			<div className='min-w-0 flex-1'>
 				<p className='text-ui-fg truncate font-medium'>{definition.label}</p>
 				{pending?.status === 'error' ? (
 					<p className='text-ui-danger text-xs'>{pending.error}</p>
+				) : pending ? (
+					// The name is the STORAGE one: `assign` renames the pick to
+					// `{slot}.{ext}` before it reaches the machine.
+					<p className='text-ui-muted truncate text-xs'>
+						{pending.file.name} · {formatFileSize(pending.file.size)}
+						{staged && ` · ${copy.staged}`}
+					</p>
 				) : filled ? (
 					<button
 						type='button'
@@ -124,7 +152,7 @@ export const SlotRow = ({
 			/>
 			{dropping && (
 				<span className='bg-ui-primary text-ui-primary-fg rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap'>
-					{filled ? copy.dropToReplace : copy.upload}
+					{occupied ? copy.dropToReplace : copy.upload}
 				</span>
 			)}
 			{!dropping && filled && !uploading && (
@@ -151,9 +179,9 @@ export const SlotRow = ({
 						onClick={() => inputRef.current?.click()}
 						className={cn(action, 'text-ui-primary hover:bg-ui-primary-soft')}
 					>
-						{filled ? copy.replace : copy.upload}
+						{occupied ? copy.replace : copy.upload}
 					</button>
-					{filled && (
+					{occupied && (
 						<button
 							type='button'
 							onClick={onRemove}
