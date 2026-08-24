@@ -6,6 +6,7 @@ import { resolveLabels, type UploaderLabels } from '../labels'
 import { cn } from './cn'
 import { DownloadIcon, ExternalLinkIcon, FileWarningIcon } from './icons'
 import { Kbd } from './Kbd'
+import { useOverlayLayer } from './overlayStack'
 import { lockBodyScroll, unlockBodyScroll } from './scrollLock'
 import { useCoarsePointer } from './useCoarsePointer'
 import { useFocusTrap } from './useFocusTrap'
@@ -121,6 +122,7 @@ export const FileViewer = ({
 	const panelRef = useRef<HTMLDivElement>(null)
 	const open = file !== null
 	const { mounted, entered } = useOverlayTransition(open)
+	const layer = useOverlayLayer(open)
 	useFocusTrap(open, panelRef)
 
 	// Gallery cursor. Synced to `file`'s position whenever the viewer opens.
@@ -201,7 +203,14 @@ export const FileViewer = ({
 			// A modifier means the key belongs to the browser (⌘D bookmarks,
 			// ⌘O opens a file): claiming it would fire our action AND theirs.
 			if (event.metaKey || event.ctrlKey || event.altKey) return
-			if (event.key === 'Escape') closeRef.current()
+			if (event.key === 'Escape') {
+				// Only the innermost overlay answers, then claims the key so a
+				// host dialog underneath does not close on the same press.
+				if (!layer.isTopmost()) return
+				event.stopPropagation()
+				closeRef.current()
+				return
+			}
 			if (event.key === 'ArrowLeft') navigate(-1)
 			if (event.key === 'ArrowRight') navigate(1)
 			// Bare letters, like the arrows above: the viewer is modal and
@@ -210,13 +219,14 @@ export const FileViewer = ({
 			if (key === 'd') downloadRef.current?.click()
 			if (key === 'o') openTabRef.current?.click()
 		}
-		window.addEventListener('keydown', onKey)
+		// Capture phase: it must run BEFORE any bubble-phase dialog handler.
+		window.addEventListener('keydown', onKey, true)
 		lockBodyScroll()
 		return () => {
-			window.removeEventListener('keydown', onKey)
+			window.removeEventListener('keydown', onKey, true)
 			unlockBodyScroll()
 		}
-	}, [open, navigate])
+	}, [open, navigate, layer])
 
 	// iOS Safari renders an embedded PDF as a frozen first page; a narrow
 	// viewport gets the download card instead, with the header tab link.

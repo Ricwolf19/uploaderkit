@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 
 import { resolveLabels, type UploaderLabels } from '../labels'
 import { cn } from './cn'
+import { useOverlayLayer } from './overlayStack'
 import { lockBodyScroll, unlockBodyScroll } from './scrollLock'
 import { useFocusTrap } from './useFocusTrap'
 import { useOverlayTransition } from './useOverlayTransition'
@@ -40,6 +41,7 @@ export const ConfirmDialog = ({
 	const copy = resolveLabels(labels)
 	const panelRef = useRef<HTMLDivElement>(null)
 	const { mounted, entered } = useOverlayTransition(open)
+	const layer = useOverlayLayer(open)
 	useFocusTrap(open, panelRef)
 
 	const cancelRef = useRef(onCancel)
@@ -49,18 +51,20 @@ export const ConfirmDialog = ({
 		if (!open) return
 		const onKey = (event: KeyboardEvent) => {
 			if (event.key === 'Escape') {
+				if (!layer.isTopmost()) return
 				event.stopPropagation()
 				cancelRef.current()
 			}
 		}
-		// Capture phase so an open FileViewer underneath does not also close.
+		// Capture phase: both overlays claim the key before any host dialog in
+		// bubble. Which of the two answers is decided by the layer stack.
 		window.addEventListener('keydown', onKey, true)
 		lockBodyScroll()
 		return () => {
 			window.removeEventListener('keydown', onKey, true)
 			unlockBodyScroll()
 		}
-	}, [open])
+	}, [open, layer])
 
 	if (!mounted) return null
 
