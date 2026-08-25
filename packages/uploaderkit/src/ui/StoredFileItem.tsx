@@ -1,5 +1,6 @@
 import { formatFileSize } from '../file'
-import { resolveLabels, type UploaderLabels } from '../labels'
+import type { UploaderLabels } from '../labels'
+import { useUploaderLabels } from '../react/UploaderProvider'
 import type { StoredFile } from '../types'
 import { cn } from './cn'
 import { FileTypeBadge } from './FileTypeBadge'
@@ -26,7 +27,7 @@ export const StoredFileItem = ({
 	size = 'md',
 	labels,
 }: StoredFileItemProps) => {
-	const copy = resolveLabels(labels)
+	const copy = useUploaderLabels(labels)
 
 	return (
 		<div

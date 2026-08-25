@@ -205,7 +205,13 @@ export const createStorage = <T extends Record<string, ScopeConfig>>({
 	}
 
 	const remove = ({ scope: name, key }: { scope: string; key: string }) => {
-		getScope(name)
+		const scope = getScope(name)
+		// The history contract, enforced where it cannot be bypassed: a scope
+		// marked `keepOnRemove` answers `false` instead of destroying the
+		// trail, whatever any client asks.
+		if (scope.keepOnRemove) {
+			return Promise.resolve(false)
+		}
 		return provider.delete(key)
 	}
 

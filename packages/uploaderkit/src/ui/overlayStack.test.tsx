@@ -32,7 +32,7 @@ describe('stacked overlays', () => {
 				<FileViewer file={file} onClose={onClose} />
 				<ConfirmDialog
 					open={false}
-					title='Quitar'
+					title='Remove'
 					message='¿Seguro?'
 					onConfirm={() => {}}
 					onCancel={onCancel}
@@ -47,7 +47,7 @@ describe('stacked overlays', () => {
 				<FileViewer file={file} onClose={onClose} />
 				<ConfirmDialog
 					open
-					title='Quitar'
+					title='Remove'
 					message='¿Seguro?'
 					onConfirm={() => {}}
 					onCancel={onCancel}

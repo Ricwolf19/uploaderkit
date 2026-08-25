@@ -1,7 +1,8 @@
 import { type ReactNode, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 
-import { resolveLabels, type UploaderLabels } from '../labels'
+import type { UploaderLabels } from '../labels'
+import { useUploaderLabels } from '../react/UploaderProvider'
 import { cn } from './cn'
 import { useOverlayLayer } from './overlayStack'
 import { lockBodyScroll, unlockBodyScroll } from './scrollLock'
@@ -38,7 +39,7 @@ export const ConfirmDialog = ({
 	onCancel,
 	labels,
 }: ConfirmDialogProps) => {
-	const copy = resolveLabels(labels)
+	const copy = useUploaderLabels(labels)
 	const panelRef = useRef<HTMLDivElement>(null)
 	const { mounted, entered } = useOverlayTransition(open)
 	const layer = useOverlayLayer(open)

@@ -1,9 +1,10 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 
 import type { ScopeConfig } from '../defineScopes'
-import { resolveLabels } from '../labels'
 import type { SlotState, UseSlottedUploaderOptions } from '../react'
 import { useSlottedUploader } from '../react'
+import type { RemoveStrategy } from '../react/types'
+import { useUploaderLabels } from '../react/UploaderProvider'
 import { warnDev } from '../warn'
 import { cn } from './cn'
 import { ConfirmDialog } from './ConfirmDialog'
@@ -46,6 +47,12 @@ export type SlottedUploaderProps<T extends Record<string, ScopeConfig>> = Omit<
 	 * dialog names both files, so the user sees what is about to be lost.
 	 */
 	confirmReplace?: boolean | { title?: string; message?: string }
+	/**
+	 * Deletion transport. With it, a confirmed slot removal deletes the object
+	 * from storage BY ITSELF — unless the scope is `keepOnRemove`, the history
+	 * contract — same wiring as `Uploader`.
+	 */
+	removeStrategy?: RemoveStrategy
 	/** Fresh URL right before previewing — for private scopes whose signed url expired. */
 	resolveViewUrl?: (file: ViewableFile) => Promise<string>
 	/** Compact paddings and glyphs everywhere. @defaultValue 'md' */
@@ -82,6 +89,7 @@ export const SlottedUploader = <T extends Record<string, ScopeConfig>>({
 	hideDropzone = false,
 	confirmRemove,
 	confirmReplace,
+	removeStrategy,
 	resolveViewUrl,
 	size = 'md',
 	icon,
@@ -102,7 +110,7 @@ export const SlottedUploader = <T extends Record<string, ScopeConfig>>({
 			"uploadOn: 'submit' has no send of its own here — pass `controllerRef` and call upload() from the form's submit, or staged slots never leave."
 		)
 	}
-	const copy = useMemo(() => resolveLabels(options.labels), [options.labels])
+	const copy = useUploaderLabels(options.labels)
 	const coarse = useCoarsePointer()
 	const viewer = useFileViewer({ resolveUrl: resolveViewUrl })
 	const [pending, setPending] = useState<PendingAction | null>(null)
@@ -128,12 +136,30 @@ export const SlottedUploader = <T extends Record<string, ScopeConfig>>({
 		void slotted.addToSlot(slot.definition.id, file)
 	}
 
+	// Same contract as Uploader's forgetStored: the package deletes, the app
+	// observes, and the reference is forgotten even when the delete fails.
+	const forgetSlot = (slot: SlotState) => {
+		const stored = slot.filled?.stored
+		if (
+			stored &&
+			removeStrategy &&
+			!options.scopes.get(options.scope).keepOnRemove
+		) {
+			removeStrategy(stored, options.scope, options.entityId)
+				.then(deleted => {
+					if (!deleted) options.onError?.(copy.removeFailed)
+				})
+				.catch(() => options.onError?.(copy.removeFailed))
+		}
+		slotted.removeSlot(slot.definition.id)
+	}
+
 	const remove = (slot: SlotState) => {
 		if (slot.filled && confirmRemove) {
 			setPending({ kind: 'remove', slot })
 			return
 		}
-		slotted.removeSlot(slot.definition.id)
+		forgetSlot(slot)
 	}
 
 	const override =
@@ -211,7 +237,7 @@ export const SlottedUploader = <T extends Record<string, ScopeConfig>>({
 					if (pending?.kind === 'replace') {
 						void slotted.addToSlot(pending.slot.definition.id, pending.file)
 					} else if (pending) {
-						slotted.removeSlot(pending.slot.definition.id)
+						forgetSlot(pending.slot)
 					}
 					setPending(null)
 				}}

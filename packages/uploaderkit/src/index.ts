@@ -27,6 +27,7 @@ export {
 export {
 	DEFAULT_LABELS,
 	EN_LABELS,
+	ES_LABELS,
 	resolveLabels,
 	type UploaderLabels,
 } from './labels'

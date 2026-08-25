@@ -33,6 +33,13 @@ export type ScopeConfig = CoreScopeConfig & {
 	 * resolved key. Set it when that folder is shared with another scope.
 	 */
 	prefix?: (entityId: string) => string
+	/**
+	 * This scope keeps its objects as HISTORY: the server refuses the DELETE
+	 * route for it, so no client — buggy or malicious — can destroy the trail.
+	 * The default is the opposite: removals are expected to delete from
+	 * storage, because a scope with stable keys can never reclaim an orphan.
+	 */
+	keepOnRemove?: boolean
 }
 
 /** Same registry, narrowed so `get` returns the extended config. */

@@ -226,6 +226,16 @@ describe('replace', () => {
 			accept: ['png'],
 			maxBytes: 1024 * 1024,
 		},
+		// History: the server must refuse to destroy its objects.
+		archivo: {
+			path: (id: string, file: FileLike) =>
+				`Entities/${id}/archivo/${file.name}`,
+			visibility: 'public',
+			accept: ['pdf'],
+			maxBytes: 1024 * 1024,
+			maxFiles: 10,
+			keepOnRemove: true,
+		},
 		// A collection: the file name is part of the key on purpose.
 		expediente: {
 			path: (id: string, file: FileLike) =>
@@ -359,5 +369,55 @@ describe('replace', () => {
 		})
 
 		expect(await storage.list('Entities/e1/expediente')).toHaveLength(2)
+	})
+})
+
+describe('remove and the keepOnRemove contract', () => {
+	const scopes = defineScopes({
+		logo: {
+			path: (id: string, file: FileLike) => `Entities/${id}/logo/${file.name}`,
+			visibility: 'public',
+			accept: ['png'],
+			maxBytes: 1024 * 1024,
+		},
+		archivo: {
+			path: (id: string, file: FileLike) =>
+				`Entities/${id}/archivo/${file.name}`,
+			visibility: 'public',
+			accept: ['pdf'],
+			maxBytes: 1024 * 1024,
+			maxFiles: 10,
+			keepOnRemove: true,
+		},
+	})
+
+	it('deletes the object for an ordinary scope', async () => {
+		const provider = createMemoryProvider()
+		const storage = createStorage({ scopes, provider })
+		const stored = await storage.upload({
+			scope: 'logo',
+			entityId: 'e1',
+			file: fileOf('logo.png', PNG_HEADER),
+		})
+
+		const deleted = await storage.remove({ scope: 'logo', key: stored.key })
+
+		expect(deleted).toBe(true)
+		await expect(provider.get(stored.key)).rejects.toThrow()
+	})
+
+	it('refuses to destroy a history scope, whatever any client asks', async () => {
+		const provider = createMemoryProvider()
+		const storage = createStorage({ scopes, provider })
+		const stored = await storage.upload({
+			scope: 'archivo',
+			entityId: 'e1',
+			file: fileOf('acta.pdf', PDF_HEADER),
+		})
+
+		const deleted = await storage.remove({ scope: 'archivo', key: stored.key })
+
+		expect(deleted).toBe(false)
+		await expect(provider.get(stored.key)).resolves.toBeDefined()
 	})
 })

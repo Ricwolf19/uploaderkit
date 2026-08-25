@@ -17,14 +17,23 @@ export {
 	type SlottedFile,
 } from './react/slots'
 export {
+	createRemoveStrategy,
 	createXhrUploadStrategy,
+	type RemoveStrategyOptions,
 	type XhrUploadStrategyOptions,
 } from './react/strategy'
 export type {
+	RemoveStrategy,
 	UploaderFile,
 	UploadStrategy,
 	UploadStrategyOptions,
 } from './react/types'
+export {
+	type UploaderLanguage,
+	UploaderProvider,
+	type UploaderProviderProps,
+	useUploaderLabels,
+} from './react/UploaderProvider'
 export {
 	type SlotState,
 	useSlottedUploader,

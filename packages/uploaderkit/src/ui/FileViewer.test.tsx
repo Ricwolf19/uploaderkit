@@ -32,10 +32,10 @@ describe('FileViewer', () => {
 		)
 
 		await waitFor(() =>
-			expect(screen.getByText('No se pudo cargar la vista previa')).toBeTruthy()
+			expect(screen.getByText('The preview could not be loaded')).toBeTruthy()
 		)
 
-		fireEvent.click(screen.getByText('Reintentar'))
+		fireEvent.click(screen.getByText('Retry'))
 		await waitFor(() =>
 			expect(document.querySelector('img')?.getAttribute('src')).toBe(
 				'https://x/a.png?sig=fresh'

@@ -24,6 +24,14 @@ const scopes = defineScopes({
 		accept: ['pdf', 'png', 'svg'],
 		maxBytes: MB,
 	},
+	historial: {
+		maxFiles: 4,
+		path: (id, file) => `Companies/${id}/historial/${file.name}`,
+		visibility: 'public',
+		accept: ['pdf', 'png', 'svg'],
+		maxBytes: MB,
+		keepOnRemove: true,
+	},
 })
 
 const slots: SlotDefinition[] = [
@@ -198,6 +206,121 @@ describe('useSlottedUploader', () => {
 		expect(result.current.slots[1]!.filled).toBeDefined()
 		act(() => result.current.removeSlot('logo'))
 		expect(onChange).toHaveBeenCalledWith([])
+	})
+
+	it('hands the forgotten persisted file to onRemoveStored', () => {
+		const stored = {
+			key: 'Customers/RFC/identity/logo.png',
+			url: 'u',
+			scope: 'identity',
+			entityId: 'c1',
+			fileName: 'logo.png',
+			mimeType: 'image/png',
+			size: 1,
+			uploadedAt: 1,
+		}
+		const onRemoveStored = vi.fn()
+		const { result } = renderHook(() =>
+			useSlottedUploader({
+				scopes,
+				scope: 'identity',
+				entityId: 'c1',
+				slots,
+				value: [{ slot: 'logo', stored }],
+				onChange: vi.fn(),
+				onRemoveStored,
+			})
+		)
+
+		act(() => result.current.removeSlot('logo'))
+
+		// The app deletes the object with THIS key — without the callback it
+		// had to diff old-vs-new arrays to even learn which key vanished.
+		expect(onRemoveStored).toHaveBeenCalledWith({ slot: 'logo', stored })
+	})
+
+	const storedLogo = {
+		key: 'Companies/c1/identity/logo.png',
+		url: 'u',
+		scope: 'identity',
+		entityId: 'c1',
+		fileName: 'logo.png',
+		mimeType: 'image/png',
+		size: 1,
+		uploadedAt: 1,
+	}
+
+	it('deletes through removeStrategy by itself', async () => {
+		const removeStrategy = vi.fn().mockResolvedValue(true)
+		const { result } = renderHook(() =>
+			useSlottedUploader({
+				scopes,
+				scope: 'identity',
+				entityId: 'c1',
+				slots,
+				value: [{ slot: 'logo', stored: storedLogo }],
+				onChange: vi.fn(),
+				removeStrategy,
+			})
+		)
+
+		act(() => result.current.removeSlot('logo'))
+
+		expect(removeStrategy).toHaveBeenCalledWith(storedLogo, 'identity', 'c1')
+	})
+
+	it('honours the keepOnRemove history contract', () => {
+		const removeStrategy = vi.fn().mockResolvedValue(true)
+		const onChange = vi.fn()
+		const { result } = renderHook(() =>
+			useSlottedUploader({
+				scopes,
+				scope: 'historial',
+				entityId: 'c1',
+				slots,
+				value: [
+					{
+						slot: 'logo',
+						stored: { ...storedLogo, key: 'Companies/c1/historial/logo.png' },
+					},
+				],
+				onChange,
+				removeStrategy,
+			})
+		)
+
+		act(() => result.current.removeSlot('logo'))
+
+		// The reference is forgotten, the object survives.
+		expect(removeStrategy).not.toHaveBeenCalled()
+		expect(onChange).toHaveBeenCalledWith([])
+	})
+
+	it('surfaces a refused delete and forgets the reference anyway', async () => {
+		const removeStrategy = vi.fn().mockResolvedValue(false)
+		const onChange = vi.fn()
+		const onError = vi.fn()
+		const { result } = renderHook(() =>
+			useSlottedUploader({
+				scopes,
+				scope: 'identity',
+				entityId: 'c1',
+				slots,
+				value: [{ slot: 'logo', stored: storedLogo }],
+				onChange,
+				onError,
+				removeStrategy,
+			})
+		)
+
+		await act(async () => {
+			result.current.removeSlot('logo')
+		})
+
+		expect(onChange).toHaveBeenCalledWith([])
+		expect(onError).toHaveBeenCalledWith(
+			'The file could not be removed from storage'
+		)
 	})
 })
 

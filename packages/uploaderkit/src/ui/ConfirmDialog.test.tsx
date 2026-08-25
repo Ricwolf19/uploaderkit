@@ -15,7 +15,7 @@ const renderDialog = (
 	render(
 		<ConfirmDialog
 			open
-			title='Quitar archivo'
+			title='Remove archivo'
 			message='¿Seguro?'
 			onConfirm={onConfirm}
 			onCancel={onCancel}
@@ -42,10 +42,10 @@ describe('ConfirmDialog', () => {
 	it('confirm and cancel reach their callbacks', () => {
 		const { onConfirm, onCancel } = renderDialog()
 
-		fireEvent.click(screen.getByText('Confirmar'))
+		fireEvent.click(screen.getByText('Confirm'))
 		expect(onConfirm).toHaveBeenCalledTimes(1)
 
-		fireEvent.click(screen.getByText('Cancelar'))
+		fireEvent.click(screen.getByText('Cancel'))
 		expect(onCancel).toHaveBeenCalledTimes(1)
 	})
 
@@ -62,7 +62,7 @@ describe('ConfirmDialog', () => {
 
 	it('focus lands on cancel so a stray Enter is harmless', () => {
 		renderDialog()
-		expect(document.activeElement?.textContent).toBe('Cancelar')
+		expect(document.activeElement?.textContent).toBe('Cancel')
 	})
 
 	it('speaks the injected language', () => {

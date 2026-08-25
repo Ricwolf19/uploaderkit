@@ -2,9 +2,10 @@
  * Every user-facing string the package renders, so no copy is hardcoded
  * inside a component and apps translate or reword without forking.
  *
- * Spanish is the default (AGENTS.md §4.5); `EN_LABELS` ships for apps in
- * English. Hooks take `labels` in their options, components as a prop —
- * always a `Partial`, merged over the default.
+ * English is the default so the kit ships globalized; `ES_LABELS` ships for
+ * Spanish apps, selected once through `UploaderProvider language='es'`. Hooks
+ * take `labels` in their options, components as a prop — always a `Partial`,
+ * merged over the provider's base.
  */
 export type UploaderLabels = {
 	/** Prompt inside the single dropzone of `Uploader` (fine pointers). */
@@ -43,6 +44,8 @@ export type UploaderLabels = {
 	next: string
 	/** Fallback when a strategy rejects without a message. */
 	uploadFailed: string
+	/** Message when the DELETE transport refused or failed. */
+	removeFailed: string
 	/** A batch past `maxFiles`. Receives the cap. */
 	maxFilesReached: (max: number) => string
 	/** A file picked for a slot whose extension the slot rejects. */
@@ -81,7 +84,8 @@ export type UploaderLabels = {
 	confirmReplaceMessage: (current: string, incoming: string) => string
 }
 
-export const DEFAULT_LABELS: UploaderLabels = {
+/** Spanish copy — select it once: `<UploaderProvider language='es'>`. */
+export const ES_LABELS: UploaderLabels = {
 	dropPrompt: 'Selecciona un archivo o arrástralo aquí',
 	tapPrompt: 'Toca para elegir un archivo',
 	bulkDropPrompt: 'Arrastra varios archivos — cada uno cae en su documento',
@@ -98,6 +102,7 @@ export const DEFAULT_LABELS: UploaderLabels = {
 	previous: 'Anterior',
 	next: 'Siguiente',
 	uploadFailed: 'No se pudo subir el archivo',
+	removeFailed: 'No se pudo borrar el archivo del almacenamiento',
 	maxFilesReached: max => `Máximo ${max} archivo(s)`,
 	slotFormatNotAllowed: (slotLabel, extensions) =>
 		`${slotLabel}: formato no permitido. Se aceptan: ${extensions.join(', ')}`,
@@ -123,7 +128,8 @@ export const DEFAULT_LABELS: UploaderLabels = {
 		`¿Reemplazar "${current}" por "${incoming}"?`,
 }
 
-export const EN_LABELS: UploaderLabels = {
+/** English copy — the package default, so the kit ships globalized. */
+export const DEFAULT_LABELS: UploaderLabels = {
 	dropPrompt: 'Choose a file or drag it here',
 	tapPrompt: 'Tap to choose a file',
 	bulkDropPrompt: 'Drop several files — each lands on its document',
@@ -140,6 +146,7 @@ export const EN_LABELS: UploaderLabels = {
 	previous: 'Previous',
 	next: 'Next',
 	uploadFailed: 'The file could not be uploaded',
+	removeFailed: 'The file could not be removed from storage',
 	maxFilesReached: max => `At most ${max} file(s)`,
 	slotFormatNotAllowed: (slotLabel, extensions) =>
 		`${slotLabel}: format not allowed. Accepted: ${extensions.join(', ')}`,
@@ -166,6 +173,12 @@ export const EN_LABELS: UploaderLabels = {
 
 /** The merge every entry point runs: partial overrides over the default. */
 export const resolveLabels = (
-	labels?: Partial<UploaderLabels>
-): UploaderLabels =>
-	labels ? { ...DEFAULT_LABELS, ...labels } : DEFAULT_LABELS
+	labels?: Partial<UploaderLabels>,
+	base: UploaderLabels = DEFAULT_LABELS
+): UploaderLabels => (labels ? { ...base, ...labels } : base)
+
+/**
+ * @deprecated English IS {@link DEFAULT_LABELS} now. A shallow copy, kept so
+ * 3.x consumers passing it keep working.
+ */
+export const EN_LABELS: UploaderLabels = { ...DEFAULT_LABELS }

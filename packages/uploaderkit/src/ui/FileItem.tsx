@@ -1,6 +1,7 @@
 import { formatFileSize } from '../file'
-import { resolveLabels, type UploaderLabels } from '../labels'
+import type { UploaderLabels } from '../labels'
 import type { UploaderFile } from '../react'
+import { useUploaderLabels } from '../react/UploaderProvider'
 import { cn } from './cn'
 import { FileTypeBadge } from './FileTypeBadge'
 import { ProgressBar } from './ProgressBar'
@@ -29,7 +30,7 @@ export const FileItem = ({
 	size = 'md',
 	labels,
 }: FileItemProps) => {
-	const copy = resolveLabels(labels)
+	const copy = useUploaderLabels(labels)
 	const uploading = file.status === 'uploading'
 
 	return (

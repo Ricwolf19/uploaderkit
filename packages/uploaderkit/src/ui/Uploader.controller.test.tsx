@@ -1,13 +1,24 @@
 // @vitest-environment happy-dom
-import { act, fireEvent, render, waitFor } from '@testing-library/react'
+import {
+	act,
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from '@testing-library/react'
 import { createRef } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { defineScopes } from '../defineScopes'
 import { MB } from '../index'
+import type { SlotDefinition } from '../react'
 import type { StoredFile } from '../types'
 import type { UploaderController } from './controller'
+import { SlottedUploader } from './SlottedUploader'
 import { Uploader } from './Uploader'
+
+afterEach(cleanup)
 
 const scopes = defineScopes({
 	docs: {
@@ -96,7 +107,7 @@ describe('Uploader controllerRef', () => {
 			fireEvent.change(input, { target: { files: [pdf('acta.pdf')] } })
 		})
 
-		expect(queryByText('Subir archivos')).toBeNull()
+		expect(queryByText('Upload files')).toBeNull()
 	})
 
 	// A form that defers the send has no other way to know it has unsent work.
@@ -142,7 +153,7 @@ describe('Uploader controllerRef', () => {
 			})
 		})
 
-		await waitFor(() => expect(queryByText('Subir archivos')).not.toBeNull())
+		await waitFor(() => expect(queryByText('Upload files')).not.toBeNull())
 	})
 
 	it('clears the ref on unmount', () => {
@@ -162,5 +173,91 @@ describe('Uploader controllerRef', () => {
 		expect(controllerRef.current).not.toBeNull()
 		unmount()
 		expect(controllerRef.current).toBeNull()
+	})
+})
+
+const slottedScopes = defineScopes({
+	identity: {
+		maxFiles: 4,
+		path: (entityId, file) => `Co/${entityId}/identity/${file.name}`,
+		visibility: 'public',
+		accept: ['pdf'],
+		maxBytes: 5 * MB,
+	},
+})
+
+const historyScopes = defineScopes({
+	identity: {
+		maxFiles: 4,
+		keepOnRemove: true,
+		path: (entityId, file) => `Co/${entityId}/identity/${file.name}`,
+		visibility: 'public',
+		accept: ['pdf'],
+		maxBytes: 5 * MB,
+	},
+})
+
+describe('SlottedUploader removal', () => {
+	const slots: SlotDefinition[] = [
+		{ id: 'doc', label: 'Documento', extensions: ['pdf'] },
+	]
+	const filled = {
+		slot: 'doc',
+		stored: {
+			key: 'Co/c1/identity/doc.pdf',
+			url: 'https://x/doc.pdf',
+			scope: 'identity',
+			entityId: 'c1',
+			fileName: 'doc.pdf',
+			mimeType: 'application/pdf',
+			size: 3,
+			uploadedAt: 1,
+		},
+	}
+
+	it('runs the remove strategy when a filled slot is forgotten', async () => {
+		const removeStrategy = vi.fn(async () => true)
+		const onChange = vi.fn()
+		render(
+			<SlottedUploader
+				scopes={slottedScopes}
+				scope='identity'
+				entityId='c1'
+				slots={slots}
+				value={[filled]}
+				onChange={onChange}
+				removeStrategy={removeStrategy}
+			/>
+		)
+
+		fireEvent.click(screen.getByText('Remove'))
+		await waitFor(() =>
+			expect(removeStrategy).toHaveBeenCalledWith(
+				filled.stored,
+				'identity',
+				'c1'
+			)
+		)
+		expect(onChange).toHaveBeenCalledWith([])
+	})
+
+	it('skips storage deletion for a keepOnRemove scope', async () => {
+		const removeStrategy = vi.fn(async () => true)
+		const onChange = vi.fn()
+		render(
+			<SlottedUploader
+				scopes={historyScopes}
+				scope='identity'
+				entityId='c1'
+				slots={slots}
+				value={[filled]}
+				onChange={onChange}
+				removeStrategy={removeStrategy}
+			/>
+		)
+
+		fireEvent.click(screen.getByText('Remove'))
+		await waitFor(() => expect(onChange).toHaveBeenCalledWith([]))
+		expect(removeStrategy).not.toHaveBeenCalled()
 	})
 })

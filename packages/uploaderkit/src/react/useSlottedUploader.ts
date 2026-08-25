@@ -3,7 +3,7 @@ import { useCallback, useMemo, useRef } from 'react'
 import type { ExtendedScopeRegistry, ScopeConfig } from '../defineScopes'
 import { resolveReplaceMode } from '../defineScopes'
 import { getFileExtension, toAcceptAttribute } from '../file'
-import { resolveLabels, type UploaderLabels } from '../labels'
+import type { UploaderLabels } from '../labels'
 import { ScopeError } from '../scopes'
 import type { FileExtension } from '../types'
 import { warnDev } from '../warn'
@@ -15,7 +15,8 @@ import {
 	type SlotMatcher,
 	type SlottedFile,
 } from './slots'
-import type { UploaderFile, UploadStrategy } from './types'
+import type { RemoveStrategy, UploaderFile, UploadStrategy } from './types'
+import { useUploaderLabels } from './UploaderProvider'
 import {
 	type RetryOptions,
 	type UploadTrigger,
@@ -27,6 +28,13 @@ export type UseSlottedUploaderOptions<T extends Record<string, ScopeConfig>> = {
 	scope: keyof T & string
 	entityId: string
 	strategy?: UploadStrategy
+	/**
+	 * Deletion transport. With it, a confirmed `removeSlot` deletes the object
+	 * from storage BY ITSELF — unless the scope is `keepOnRemove`, the history
+	 * contract — so no consumer can orphan by forgetting a callback.
+	 * `onRemoveStored` still fires for the app's own bookkeeping.
+	 */
+	removeStrategy?: RemoveStrategy
 	slots: SlotDefinition[]
 	/** Currently persisted files. The caller owns persistence — controlled. */
 	value: SlottedFile[]
@@ -40,6 +48,14 @@ export type UseSlottedUploaderOptions<T extends Record<string, ScopeConfig>> = {
 	uploadOn?: UploadTrigger
 	/** Fired when a batch starts travelling. Same contract as `useUploader`. */
 	onUploadStart?: (files: UploaderFile[]) => void
+	/**
+	 * Fired with the PERSISTED file a `removeSlot` just forgot, before
+	 * `onChange` delivers the filtered set. This is where the app deletes the
+	 * object from storage — without it the consumer had to diff old-vs-new
+	 * arrays to even learn which key vanished, and every stable-key scope
+	 * orphaned on remove.
+	 */
+	onRemoveStored?: (stored: SlottedFile) => void
 	onError?: (message: string) => void
 	/** Forwarded to the underlying `useUploader`. */
 	retry?: number | RetryOptions
@@ -65,7 +81,10 @@ export type UseSlottedUploaderReturn = {
 	addFiles: (incoming: FileList | File[]) => Promise<void>
 	/** Put one file in one specific slot (per-row browse button). */
 	addToSlot: (slotId: string, file: File) => Promise<void>
-	/** Forget the persisted file of a slot (remote deletion is the app's call). */
+	/**
+	 * Forget the persisted file of a slot. Remote deletion stays the app's
+	 * call — made through `onRemoveStored`, which receives the forgotten file.
+	 */
 	removeSlot: (slotId: string) => void
 	abort: (slotId?: string) => void
 	/** Uploads every slot still holding an `idle` file (`uploadOn: 'manual'`). */
@@ -92,12 +111,14 @@ export const useSlottedUploader = <T extends Record<string, ScopeConfig>>({
 	match,
 	uploadOn = 'select',
 	onUploadStart,
+	removeStrategy,
+	onRemoveStored,
 	onError,
 	retry,
 	concurrency,
 	labels,
 }: UseSlottedUploaderOptions<T>): UseSlottedUploaderReturn => {
-	const copy = resolveLabels(labels)
+	const copy = useUploaderLabels(labels)
 	// Impossible configs throw, "will fail at upload time" configs warn once.
 	// See AGENTS.md §3.1.
 	useMemo(() => {
@@ -249,11 +270,35 @@ export const useSlottedUploader = <T extends Record<string, ScopeConfig>>({
 				.filter(file => file.file.name.startsWith(`${slotId}.`))
 				.forEach(file => uploader.removeFile(file.id))
 			landedRef.current.delete(slotId)
+			const forgotten = valueRef.current.find(item => item.slot === slotId)
+			if (forgotten) {
+				// The package deletes; the app only observes. Fire-and-forget
+				// with the reference ordering: forget the reference regardless,
+				// because a dangling pointer is worse than an orphan — and
+				// surface a refused delete instead of swallowing it.
+				if (removeStrategy && !scopes.get(scope).keepOnRemove) {
+					removeStrategy(forgotten.stored, scope, entityId)
+						.then(deleted => {
+							if (!deleted) onError?.(copy.removeFailed)
+						})
+						.catch(() => onError?.(copy.removeFailed))
+				}
+				onRemoveStored?.(forgotten)
+			}
 			void onChangeRef.current(
 				valueRef.current.filter(item => item.slot !== slotId)
 			)
 		},
-		[uploader]
+		[
+			uploader,
+			removeStrategy,
+			scopes,
+			scope,
+			entityId,
+			onRemoveStored,
+			onError,
+			copy,
+		]
 	)
 
 	const abort = useCallback(

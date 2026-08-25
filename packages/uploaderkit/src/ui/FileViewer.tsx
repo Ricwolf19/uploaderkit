@@ -2,7 +2,8 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import { getMimeType } from '../file'
-import { resolveLabels, type UploaderLabels } from '../labels'
+import type { UploaderLabels } from '../labels'
+import { useUploaderLabels } from '../react/UploaderProvider'
 import { cn } from './cn'
 import { DownloadIcon, ExternalLinkIcon, FileWarningIcon } from './icons'
 import { Kbd } from './Kbd'
@@ -112,7 +113,7 @@ export const FileViewer = ({
 	renderError,
 	labels,
 }: FileViewerProps) => {
-	const copy = resolveLabels(labels)
+	const copy = useUploaderLabels(labels)
 	const coarse = useCoarsePointer()
 	const [url, setUrl] = useState<string | null>(null)
 	const [failed, setFailed] = useState(false)

@@ -1,5 +1,5 @@
 import type { StoredFile } from '../types'
-import type { UploadStrategy } from './types'
+import type { RemoveStrategy, UploadStrategy } from './types'
 
 export type XhrUploadStrategyOptions = {
 	/** Base URL of the storage router, e.g. `${apiUrl}/storage`. */
@@ -80,3 +80,30 @@ export const createXhrUploadStrategy =
 			form.append(fieldName, file)
 			xhr.send(form)
 		})
+
+export type RemoveStrategyOptions = Omit<XhrUploadStrategyOptions, 'fieldName'>
+
+/**
+ * Default deletion transport: `DELETE {endpoint}/{scope}/{entityId}` with
+ * `{ key }` as JSON — the route the package's own Express/Next handlers
+ * document (`router.delete('/:scope/:entityId', handlers.remove)`).
+ *
+ * Plain `fetch`, not XHR: a delete has no body worth a progress bar, which is
+ * the only reason the upload half needs XMLHttpRequest.
+ */
+export const createRemoveStrategy =
+	({ endpoint, headers, credentials }: RemoveStrategyOptions): RemoveStrategy =>
+	async (stored, scope, entityId) => {
+		const url = `${endpoint.replace(/\/$/, '')}/${encodeURIComponent(scope)}/${encodeURIComponent(entityId)}`
+		const response = await fetch(url, {
+			method: 'DELETE',
+			credentials,
+			headers: { 'Content-Type': 'application/json', ...headers?.() },
+			body: JSON.stringify({ key: stored.key }),
+		})
+		if (!response.ok) return false
+		const body = (await response.json().catch(() => null)) as {
+			deleted?: boolean
+		} | null
+		return body?.deleted === true
+	}

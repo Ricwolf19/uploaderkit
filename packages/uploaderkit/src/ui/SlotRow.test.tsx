@@ -49,7 +49,7 @@ describe('SlotRow', () => {
 		renderRow({ pending: pending() })
 
 		expect(screen.getByText(/letterhead\.pdf/)).toBeTruthy()
-		expect(screen.getByText(/Listo para subir/)).toBeTruthy()
+		expect(screen.getByText(/Ready to upload/)).toBeTruthy()
 		expect(screen.queryByText('Solo PDF')).toBeNull()
 	})
 
@@ -66,8 +66,8 @@ describe('SlotRow', () => {
 	it('lets a staged pick be undone and replaced', () => {
 		const { onRemove } = renderRow({ pending: pending() })
 
-		expect(screen.getByText('Reemplazar')).toBeTruthy()
-		fireEvent.click(screen.getByText('Quitar'))
+		expect(screen.getByText('Replace')).toBeTruthy()
+		fireEvent.click(screen.getByText('Remove'))
 		expect(onRemove).toHaveBeenCalled()
 	})
 
@@ -75,8 +75,8 @@ describe('SlotRow', () => {
 		renderRow()
 
 		expect(screen.getByText('Solo PDF')).toBeTruthy()
-		expect(screen.getByText('Subir')).toBeTruthy()
-		expect(screen.queryByText('Quitar')).toBeNull()
+		expect(screen.getByText('Upload')).toBeTruthy()
+		expect(screen.queryByText('Remove')).toBeNull()
 	})
 
 	it('leaves a persisted slot exactly as it was', () => {
@@ -88,18 +88,18 @@ describe('SlotRow', () => {
 		})
 
 		expect(screen.getByText('membrete.pdf')).toBeTruthy()
-		expect(screen.getByText('Ver')).toBeTruthy()
-		expect(screen.getByText('Reemplazar')).toBeTruthy()
-		expect(screen.getByText('Quitar')).toBeTruthy()
+		expect(screen.getByText('View')).toBeTruthy()
+		expect(screen.getByText('Replace')).toBeTruthy()
+		expect(screen.getByText('Remove')).toBeTruthy()
 	})
 
 	it('offers only cancel while the upload is in flight', () => {
 		renderRow({ pending: pending({ status: 'uploading', progress: 40 }) })
 
 		expect(screen.getByText(/letterhead\.pdf/)).toBeTruthy()
-		expect(screen.getByText('Cancelar')).toBeTruthy()
-		expect(screen.queryByText('Quitar')).toBeNull()
-		expect(screen.queryByText('Reemplazar')).toBeNull()
+		expect(screen.getByText('Cancel')).toBeTruthy()
+		expect(screen.queryByText('Remove')).toBeNull()
+		expect(screen.queryByText('Replace')).toBeNull()
 	})
 
 	it('shows the failure instead of the name when the pick was rejected', () => {

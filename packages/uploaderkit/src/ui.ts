@@ -7,6 +7,12 @@
  * `uploaderkit/tailwind.css` from the app's CSS entry.
  */
 
+export {
+	type UploaderLanguage,
+	UploaderProvider,
+	type UploaderProviderProps,
+	useUploaderLabels,
+} from './react/UploaderProvider'
 export { cn } from './ui/cn'
 export { ConfirmDialog, type ConfirmDialogProps } from './ui/ConfirmDialog'
 export {

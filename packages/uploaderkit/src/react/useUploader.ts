@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { ExtendedScopeRegistry, ScopeConfig } from '../defineScopes'
-import { resolveLabels, type UploaderLabels } from '../labels'
+import type { UploaderLabels } from '../labels'
 import { validateForScope } from '../scopes'
 import type { StoredFile } from '../types'
 import { warnDev } from '../warn'
 import { compressImage } from './compressImage'
 import type { UploaderFile, UploadStrategy } from './types'
+import { useUploaderLabels } from './UploaderProvider'
 
 /**
  * When the machine sends: `'manual'` holds files in `idle` until the app calls
@@ -182,7 +183,7 @@ export const useUploader = <T extends Record<string, ScopeConfig>>({
 	// not the state snapshot from before the setFiles commit.
 	const filesRef = useRef<UploaderFile[]>([])
 	filesRef.current = files
-	const copy = useMemo(() => resolveLabels(labels), [labels])
+	const copy = useUploaderLabels(labels)
 	const { attempts, backoffMs } = normalizeRetry(retry)
 
 	const patch = useCallback((id: string, changes: Partial<UploaderFile>) => {

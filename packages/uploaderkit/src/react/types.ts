@@ -8,6 +8,18 @@ export type UploadStrategyOptions = {
 }
 
 /**
+ * Deletes one persisted object from storage. The uploaders run it themselves
+ * on a confirmed removal — unless the scope is marked `keepOnRemove`, the
+ * history contract — so a consumer that wires a strategy can no longer orphan
+ * by forgetting a callback. Resolve `false` when the server refused.
+ */
+export type RemoveStrategy = (
+	stored: StoredFile,
+	scope: string,
+	entityId: string
+) => Promise<boolean>
+
+/**
  * The physical transport for one file. Injected into `useUploader` so the hook
  * owns state and validation while the app owns how bytes travel — swap the
  * endpoint, the auth header or the whole protocol without touching the hook.

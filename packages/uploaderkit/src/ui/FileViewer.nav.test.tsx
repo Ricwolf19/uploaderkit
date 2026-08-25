@@ -49,13 +49,13 @@ describe('FileViewer gallery', () => {
 		render(<FileViewer file={gallery[0]!} files={gallery} onClose={() => {}} />)
 		await waitFor(() => expect(document.querySelector('img')).toBeTruthy())
 
-		fireEvent.click(screen.getByLabelText('Siguiente'))
+		fireEvent.click(screen.getByLabelText('Next'))
 		await waitFor(() =>
 			expect(document.querySelector('img')?.getAttribute('src')).toBe(
 				'https://x/2.png'
 			)
 		)
-		expect(screen.getByLabelText('Anterior').hasAttribute('disabled')).toBe(
+		expect(screen.getByLabelText('Previous').hasAttribute('disabled')).toBe(
 			false
 		)
 	})
@@ -99,13 +99,11 @@ describe('FileViewer header actions', () => {
 		render(<FileViewer file={file} onClose={() => {}} />)
 		await waitFor(() => expect(document.querySelector('img')).toBeTruthy())
 
-		const download = screen.getByLabelText('Descargar') as HTMLAnchorElement
+		const download = screen.getByLabelText('Download') as HTMLAnchorElement
 		expect(download.getAttribute('download')).toBe('1.png')
 		expect(download.getAttribute('href')).toBe(file.url)
 
-		const openTab = screen.getByLabelText(
-			'Abrir en pestaña'
-		) as HTMLAnchorElement
+		const openTab = screen.getByLabelText('Open in tab') as HTMLAnchorElement
 		expect(openTab.getAttribute('target')).toBe('_blank')
 	})
 
@@ -124,7 +122,7 @@ describe('FileViewer header actions', () => {
 		await waitFor(() => expect(document.querySelector('img')).toBeTruthy())
 
 		const clicked: string[] = []
-		for (const label of ['Descargar', 'Abrir en pestaña']) {
+		for (const label of ['Download', 'Open in tab']) {
 			screen.getByLabelText(label).addEventListener('click', event => {
 				event.preventDefault()
 				clicked.push(label)
@@ -134,7 +132,7 @@ describe('FileViewer header actions', () => {
 		fireEvent.keyDown(window, { key: 'd' })
 		fireEvent.keyDown(window, { key: 'O' })
 
-		expect(clicked).toEqual(['Descargar', 'Abrir en pestaña'])
+		expect(clicked).toEqual(['Download', 'Open in tab'])
 	})
 })
 
@@ -158,13 +156,13 @@ describe('FileViewer failure', () => {
 		fireEvent.error(image)
 
 		await waitFor(() =>
-			expect(screen.getByText('No se pudo cargar la vista previa')).toBeTruthy()
+			expect(screen.getByText('The preview could not be loaded')).toBeTruthy()
 		)
 		// Never a dead end: retry, and the bytes may still be reachable.
-		// Scoped to the panel's own button row — "Descargar" also names the
+		// Scoped to the panel's own button row — "Download" also names the
 		// header action and its hint.
-		const actions = screen.getByText('Reintentar').parentElement!
-		expect(within(actions).getByText('Descargar')).toBeTruthy()
+		const actions = screen.getByText('Retry').parentElement!
+		expect(within(actions).getByText('Download')).toBeTruthy()
 	})
 
 	it('hands the failure to a custom panel with its retry', async () => {
@@ -188,7 +186,7 @@ describe('FileViewer failure', () => {
 		fireEvent.error(image)
 
 		const custom = await waitFor(() => screen.getByText(/roto: gone.png/))
-		expect(screen.queryByText('No se pudo cargar la vista previa')).toBeNull()
+		expect(screen.queryByText('The preview could not be loaded')).toBeNull()
 
 		// The retry it was handed puts the preview back in flight.
 		fireEvent.click(custom)
@@ -218,11 +216,11 @@ describe('FileViewer layout', () => {
 		)
 
 		await waitFor(() =>
-			expect(screen.getByText('No se pudo cargar la vista previa')).toBeTruthy()
+			expect(screen.getByText('The preview could not be loaded')).toBeTruthy()
 		)
 
 		const content = screen
-			.getByText('No se pudo cargar la vista previa')
+			.getByText('The preview could not be loaded')
 			.closest('[tabindex="-1"]')!
 		expect(content.className).toContain('items-center')
 		expect(content.className).not.toContain('items-stretch')

@@ -1,9 +1,10 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 
 import type { ScopeConfig } from '../defineScopes'
-import { resolveLabels } from '../labels'
 import type { UseUploaderOptions } from '../react'
 import { useUploader } from '../react'
+import type { RemoveStrategy } from '../react/types'
+import { useUploaderLabels } from '../react/UploaderProvider'
 import type { StoredFile } from '../types'
 import { warnDev } from '../warn'
 import { cn } from './cn'
@@ -30,8 +31,17 @@ export type UploaderProps<T extends Record<string, ScopeConfig>> = Omit<
 	description?: string
 	/** Files already persisted, rendered above the dropzone. */
 	stored?: StoredFile[]
-	/** Forget a persisted file. Remote deletion stays the app's decision. */
+	/**
+	 * Notified when a persisted file is forgotten — the app's bookkeeping
+	 * (clear the DB reference). Storage deletion belongs to `removeStrategy`.
+	 */
 	onRemoveStored?: (file: StoredFile) => void
+	/**
+	 * Deletion transport. With it, a confirmed removal deletes the object from
+	 * storage BY ITSELF — unless the scope is `keepOnRemove`, the history
+	 * contract — so no consumer can orphan by forgetting a callback.
+	 */
+	removeStrategy?: RemoveStrategy
 	/**
 	 * Gate `onRemoveStored` behind a confirmation dialog. `true` uses the
 	 * label defaults; an object overrides the copy for this uploader.
@@ -89,6 +99,7 @@ export const Uploader = <T extends Record<string, ScopeConfig>>({
 	shortcut,
 	controllerRef,
 	onPendingChange,
+	removeStrategy,
 	disabled = false,
 	className,
 	...options
@@ -98,7 +109,7 @@ export const Uploader = <T extends Record<string, ScopeConfig>>({
 		...options,
 		uploadOn: uploadOn === 'select' ? 'select' : 'manual',
 	})
-	const copy = useMemo(() => resolveLabels(options.labels), [options.labels])
+	const copy = useUploaderLabels(options.labels)
 	const viewer = useFileViewer({ resolveUrl: resolveViewUrl })
 	const [removing, setRemoving] = useState<StoredFile | null>(null)
 	const { files, removeFile } = uploader
@@ -139,10 +150,25 @@ export const Uploader = <T extends Record<string, ScopeConfig>>({
 		onPendingChange?.(hasPending)
 	}, [onPendingChange, hasPending])
 
-	const requestRemove = onRemoveStored
-		? (file: StoredFile) =>
-				confirmRemove ? setRemoving(file) : onRemoveStored(file)
-		: undefined
+	// One forget path for both branches: the package deletes, the app observes.
+	// The reference is forgotten regardless — a dangling pointer is worse than
+	// an orphan — and a refused delete surfaces through `onError`.
+	const forgetStored = (file: StoredFile) => {
+		if (removeStrategy && !options.scopes.get(options.scope).keepOnRemove) {
+			removeStrategy(file, options.scope, options.entityId)
+				.then(deleted => {
+					if (!deleted) options.onError?.(copy.removeFailed)
+				})
+				.catch(() => options.onError?.(copy.removeFailed))
+		}
+		onRemoveStored?.(file)
+	}
+
+	const requestRemove =
+		onRemoveStored || removeStrategy
+			? (file: StoredFile) =>
+					confirmRemove ? setRemoving(file) : forgetStored(file)
+			: undefined
 
 	const confirmCopy = typeof confirmRemove === 'object' ? confirmRemove : {}
 
@@ -223,7 +249,7 @@ export const Uploader = <T extends Record<string, ScopeConfig>>({
 					copy.confirmRemoveMessage(removing?.fileName ?? '')
 				}
 				onConfirm={() => {
-					if (removing) onRemoveStored?.(removing)
+					if (removing) forgetStored(removing)
 					setRemoving(null)
 				}}
 				onCancel={() => setRemoving(null)}

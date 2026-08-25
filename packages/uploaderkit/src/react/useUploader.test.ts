@@ -133,7 +133,7 @@ describe('useUploader', () => {
 		)
 
 		expect(result.current.files).toHaveLength(2)
-		expect(onError).toHaveBeenCalledWith('Máximo 2 archivo(s)')
+		expect(onError).toHaveBeenCalledWith('At most 2 file(s)')
 	})
 
 	it("uploadOn: 'select' fires on selection; 'manual' (the default) waits", async () => {

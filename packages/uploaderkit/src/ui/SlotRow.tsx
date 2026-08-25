@@ -1,8 +1,9 @@
 import { type DragEvent, useRef, useState } from 'react'
 
 import { formatFileSize } from '../file'
-import { resolveLabels, type UploaderLabels } from '../labels'
+import type { UploaderLabels } from '../labels'
 import type { SlotState } from '../react'
+import { useUploaderLabels } from '../react/UploaderProvider'
 import { cn } from './cn'
 import { FileTypeBadge } from './FileTypeBadge'
 import { ProgressBar } from './ProgressBar'
@@ -37,7 +38,7 @@ export const SlotRow = ({
 	size = 'md',
 	labels,
 }: SlotRowProps) => {
-	const copy = resolveLabels(labels)
+	const copy = useUploaderLabels(labels)
 	const inputRef = useRef<HTMLInputElement>(null)
 	const [dropping, setDropping] = useState(false)
 	// Depth counter — see Dropzone.
