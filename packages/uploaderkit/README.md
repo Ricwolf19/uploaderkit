@@ -532,7 +532,7 @@ import { Uploader } from 'uploaderkit/ui'
 	label='Evidence'
 	description='PDF or photo, up to 8 MB'
 	stored={saved} // already persisted, rendered above the dropzone
-	onRemoveStored={forget} // remote deletion stays your decision
+	onRemoveStored={forget} // delete from storage here — see Removal below
 	confirmRemove // gate it behind a dialog; or { title, message }
 	onUploaded={persist}
 	resolveViewUrl={file => api.signedUrl(file.key)}
@@ -602,6 +602,10 @@ Remove, until the form calls `controllerRef.current.upload()`. The status dot
 turns amber to say so. The name shown is the storage one — the file is renamed
 to `{slot}.{ext}` before it enters the machine, which is what the entity will
 actually serve.
+
+**Removal deletes, history keeps.** Pass a `removeStrategy` — `createRemoveStrategy({ endpoint, headers, credentials })`, the DELETE mirror of the upload transport (`DELETE {endpoint}/{scope}/{entityId}` with `{ key }`) — and a confirmed removal deletes the object from storage **by itself**, on `Uploader` and `SlottedUploader` alike. `onRemoveStored(stored)` still fires for the app's bookkeeping (clearing the DB reference), delivered BEFORE `onChange`. The reference is forgotten even when the delete fails — a dangling pointer is worse than an orphan — and a refused delete surfaces through `onError`. The opt-out is a scope contract, not a client choice: mark the scope `keepOnRemove: true` and both the components skip the delete and the server's `storage.remove` answers `false` — history enforced where no client can bypass it.
+
+**Language.** English is the default across the kit. A Spanish app opts in once at the root — `<UploaderProvider language='es'>` (exported from `/react` and `/ui`) — and every component and hook under it, including validation messages like `maxFilesReached`, speaks Spanish; a per-component `labels` prop still wins for one-off rewording.
 
 ### Confirmations
 

@@ -598,6 +598,10 @@ punto de estado se pone ámbar para decirlo. El nombre que se muestra es el de
 almacenamiento — el archivo se renombra a `{slot}.{ext}` antes de entrar a la
 máquina, y es el que la entidad va a servir.
 
+**Quitar borra; el historial se declara.** Pasa un `removeStrategy` — `createRemoveStrategy({ endpoint, headers, credentials })`, el espejo DELETE del transporte de subida (`DELETE {endpoint}/{scope}/{entityId}` con `{ key }`) — y un quitar confirmado borra el objeto del storage **por sí solo**, igual en `Uploader` que en `SlottedUploader`. `onRemoveStored(stored)` sigue disparándose para la contabilidad de la app (limpiar la referencia en DB), entregado ANTES del `onChange`. La referencia se olvida aunque el borrado falle — un puntero colgante es peor que un huérfano — y un borrado rechazado sale por `onError`. La excepción es contrato del scope, no decisión del cliente: márcalo `keepOnRemove: true` y tanto los componentes saltan el borrado como el `storage.remove` del server responde `false` — historial aplicado donde ningún cliente lo puede saltar.
+
+**Idioma.** El default del kit es inglés. Una app en español opta una sola vez en la raíz — `<UploaderProvider language='es'>` (exportado de `/react` y `/ui`) — y todo componente y hook debajo, incluidos los mensajes de validación como `maxFilesReached`, habla español; el prop `labels` por componente sigue ganando para reescrituras puntuales.
+
 ### Confirmaciones
 
 Las acciones destructivas sobre archivos llevan un segundo paso: un diálogo
