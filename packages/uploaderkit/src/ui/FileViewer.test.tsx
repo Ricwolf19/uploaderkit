@@ -68,3 +68,104 @@ describe('FileViewer', () => {
 		expect(document.body.style.overflow).toBe('')
 	})
 })
+
+describe('FileViewer pdf embedding', () => {
+	const pdf: ViewableFile = {
+		url: 'https://x/a.pdf',
+		fileName: 'a.pdf',
+		mimeType: 'application/pdf',
+	}
+
+	const withPdfViewer = (enabled: boolean | undefined) =>
+		Object.defineProperty(navigator, 'pdfViewerEnabled', {
+			value: enabled,
+			configurable: true,
+		})
+
+	afterEach(() => withPdfViewer(undefined))
+
+	it('embeds a pdf where the browser renders one', async () => {
+		withPdfViewer(true)
+		render(<FileViewer file={pdf} onClose={() => {}} />)
+
+		await waitFor(() => expect(document.querySelector('iframe')).toBeTruthy())
+	})
+
+	// Android Chrome answers false and downloads instead of embedding: an
+	// iframe there is a blank rectangle with no way out of it.
+	it('offers the download card where it does not', async () => {
+		withPdfViewer(false)
+		render(<FileViewer file={pdf} onClose={() => {}} />)
+
+		await waitFor(() =>
+			expect(screen.getByText('This format has no preview')).toBeTruthy()
+		)
+		expect(document.querySelector('iframe')).toBeNull()
+	})
+})
+
+describe('FileViewer object urls', () => {
+	// createBlobUrlResolver hands back a `blob:` whose bytes stay alive until
+	// something revokes it, and the JSDoc promised the viewer would.
+	// Spy, not stubGlobal: replacing the whole `URL` global drops the class
+	// itself, and happy-dom needs it while rendering.
+	const spyRevoke = () =>
+		vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+
+	afterEach(() => vi.restoreAllMocks())
+
+	it('revokes the blob it resolved when the viewer closes', async () => {
+		const revoke = spyRevoke()
+		const { rerender } = render(
+			<FileViewer
+				file={file}
+				onClose={() => {}}
+				resolveUrl={async () => 'blob:one'}
+			/>
+		)
+		await waitFor(() =>
+			expect(document.querySelector('img')?.getAttribute('src')).toBe(
+				'blob:one'
+			)
+		)
+
+		rerender(<FileViewer file={null} onClose={() => {}} />)
+		await waitFor(() => expect(revoke).toHaveBeenCalledWith('blob:one'))
+	})
+
+	it('frees the previous blob when it moves to another file', async () => {
+		const revoke = spyRevoke()
+		const second = { ...file, url: 'https://x/b.png' }
+		const resolveUrl = async (f: ViewableFile) =>
+			f.url.endsWith('a.png') ? 'blob:one' : 'blob:two'
+
+		const { rerender } = render(
+			<FileViewer file={file} onClose={() => {}} resolveUrl={resolveUrl} />
+		)
+		await waitFor(() =>
+			expect(document.querySelector('img')?.getAttribute('src')).toBe(
+				'blob:one'
+			)
+		)
+
+		rerender(
+			<FileViewer file={second} onClose={() => {}} resolveUrl={resolveUrl} />
+		)
+		await waitFor(() => expect(revoke).toHaveBeenCalledWith('blob:one'))
+	})
+
+	it('never revokes a signed url — that one belongs to the server', async () => {
+		const revoke = spyRevoke()
+		const { rerender } = render(
+			<FileViewer
+				file={file}
+				onClose={() => {}}
+				resolveUrl={async () => 'https://bucket/a.png?sig=1'}
+			/>
+		)
+		await waitFor(() => expect(document.querySelector('img')).toBeTruthy())
+
+		rerender(<FileViewer file={null} onClose={() => {}} />)
+		expect(revoke).not.toHaveBeenCalled()
+	})
+})

@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createBytesResolver, viewUrlFileName } from './viewResolver'
+import {
+	createBlobUrlResolver,
+	createBytesResolver,
+	viewUrlFileName,
+} from './viewResolver'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -99,5 +103,56 @@ describe('createBytesResolver', () => {
 		await expect(resolve('/storage/s/1/view')).rejects.toThrow(
 			'No se pudo cargar el archivo'
 		)
+	})
+})
+
+describe('createBlobUrlResolver', () => {
+	const stubBlob = (type: string) => {
+		const created: Blob[] = []
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(
+				async () =>
+					({
+						ok: true,
+						blob: async () => new Blob(['x'], { type }),
+					}) as unknown as Response
+			)
+		)
+		vi.stubGlobal('URL', {
+			createObjectURL: (blob: Blob) => {
+				created.push(blob)
+				return 'blob:stub'
+			},
+		})
+		return created
+	}
+
+	it('retypes an octet-stream response with the file mime — a blob: PDF is rendered from its type alone', async () => {
+		const created = stubBlob('application/octet-stream')
+		const resolve = createBlobUrlResolver({
+			baseUrl: 'https://api.example.com',
+		})
+
+		await resolve({
+			url: '/storage/s/1/view?key=k',
+			mimeType: 'application/pdf',
+		})
+
+		expect(created[0]?.type).toBe('application/pdf')
+	})
+
+	it('keeps a truthful response type over the declared one', async () => {
+		const created = stubBlob('image/png')
+		const resolve = createBlobUrlResolver({
+			baseUrl: 'https://api.example.com',
+		})
+
+		await resolve({
+			url: '/storage/s/1/view?key=k',
+			mimeType: 'application/pdf',
+		})
+
+		expect(created[0]?.type).toBe('image/png')
 	})
 })

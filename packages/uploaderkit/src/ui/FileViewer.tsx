@@ -76,6 +76,37 @@ const kindOf = (file: ViewableFile): Kind => {
 	return 'other'
 }
 
+/**
+ * iPadOS 13+ reports itself as a Mac, so the platform string alone misses it;
+ * a Mac with a touchscreen is the tell.
+ */
+const isIosWebkit = (): boolean => {
+	const ua = navigator.userAgent
+	return (
+		/iPad|iPhone|iPod/.test(ua) ||
+		(ua.includes('Macintosh') && navigator.maxTouchPoints > 1)
+	)
+}
+
+/**
+ * Whether an `<iframe>` will actually RENDER a PDF here.
+ *
+ * This used to be a `max-width: 640px` media query standing in for "iOS
+ * Safari". It punished every narrow viewport — a half-width desktop window, a
+ * phone on Chrome — with the "no preview" card, while iPadOS, which is wider
+ * than the breakpoint AND genuinely broken, sailed past it into a blank frame.
+ *
+ * `pdfViewerEnabled` is the browser answering the question directly (it is
+ * false on Android Chrome, which downloads instead of embedding). WebKit on iOS
+ * answers yes and then paints a frozen first page, so it stays excluded by
+ * name.
+ */
+const browserEmbedsPdf = (): boolean => {
+	if (typeof navigator === 'undefined') return false
+	if (navigator.pdfViewerEnabled === false) return false
+	return !isIosWebkit()
+}
+
 const Chevron = ({ direction }: { direction: 'left' | 'right' }) => (
 	<svg
 		viewBox='0 0 24 24'
@@ -153,6 +184,15 @@ export const FileViewer = ({
 		[list]
 	)
 
+	// The viewer resolves, so the viewer owns what the resolution minted: a
+	// `createBlobUrlResolver` hands back a `blob:` whose BYTES stay alive until
+	// something revokes it, and browsing a gallery mints one per file.
+	const objectUrlRef = useRef<string | null>(null)
+	const releaseObjectUrl = useCallback(() => {
+		if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
+		objectUrlRef.current = null
+	}, [])
+
 	// In a ref, not the deps: callers pass an inline arrow and re-signing is a
 	// round trip. Only the viewed file (or an explicit retry) may re-run it.
 	const resolveRef = useRef(resolveUrl)
@@ -160,6 +200,9 @@ export const FileViewer = ({
 	const currentUrl = current?.url
 
 	useEffect(() => {
+		// Before the early return: closing the viewer nulls `current`, and that
+		// is exactly when the last blob has to go.
+		releaseObjectUrl()
 		if (!current) {
 			setUrl(null)
 			setFailed(false)
@@ -172,7 +215,16 @@ export const FileViewer = ({
 			try {
 				const resolve = resolveRef.current
 				const resolved = resolve ? await resolve(current) : current.url
-				if (alive) setUrl(resolved)
+				const minted = resolved.startsWith('blob:')
+				if (!alive) {
+					// Superseded mid-flight: nothing will ever render it, so it has
+					// to go now or it is unreachable AND alive.
+					if (minted) URL.revokeObjectURL(resolved)
+					return
+				}
+				// A signed url belongs to the server; only a blob is ours to free.
+				if (minted) objectUrlRef.current = resolved
+				setUrl(resolved)
 			} catch {
 				// An expired signature or a dropped connection must surface as a
 				// retryable state, never as an eternal "Cargando…".
@@ -189,6 +241,9 @@ export const FileViewer = ({
 		// entry must not re-sign.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [currentUrl, attempt])
+
+	// The effect above frees on every change; this catches the last one.
+	useEffect(() => releaseObjectUrl, [releaseObjectUrl])
 
 	const closeRef = useRef(onClose)
 	closeRef.current = onClose
@@ -229,17 +284,10 @@ export const FileViewer = ({
 		}
 	}, [open, navigate, layer])
 
-	// iOS Safari renders an embedded PDF as a frozen first page; a narrow
-	// viewport gets the download card instead, with the header tab link.
-	const [narrow, setNarrow] = useState(false)
-	useEffect(() => {
-		if (!open) return
-		const query = window.matchMedia('(max-width: 640px)')
-		setNarrow(query.matches)
-		const onChange = (event: MediaQueryListEvent) => setNarrow(event.matches)
-		query.addEventListener('change', onChange)
-		return () => query.removeEventListener('change', onChange)
-	}, [open])
+	// Lazy initializer, not an effect: `navigator` cannot change under the
+	// component, and starting at `true` painted one iframe frame on iOS before
+	// correcting to the download card.
+	const [canEmbedPdf] = useState(browserEmbedsPdf)
 
 	const view = current ?? lastViewRef.current
 	if (!mounted || !view) return null
@@ -247,7 +295,7 @@ export const FileViewer = ({
 	// Drives BOTH the branch and the stretch class: the iframe is the only
 	// child that fills its container, and letting the two drift is what pinned
 	// a failed PDF's message to the top edge.
-	const showsPdf = kind === 'pdf' && !narrow && !failed && !!url
+	const showsPdf = kind === 'pdf' && canEmbedPdf && !failed && !!url
 	const hasGallery = list !== null && list.length > 1
 
 	const arrow =

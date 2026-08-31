@@ -50,6 +50,17 @@ const fetchStored = async (
 }
 
 /**
+ * An object URL carries the response's Content-Type, and that alone decides how
+ * a browser renders a `blob:` — a PDF served as `octet-stream` never reaches
+ * the built-in viewer, it silently downloads. When the file declares a type and
+ * the response does not, believe the file.
+ */
+const retyped = (blob: Blob, mimeType?: string): Blob =>
+	mimeType && (!blob.type || blob.type === 'application/octet-stream')
+		? new Blob([blob], { type: mimeType })
+		: blob
+
+/**
  * `resolveUrl` for the FileViewer over authenticated endpoints. An `<img>` or
  * `<iframe>` cannot send an Authorization header or a cross-site cookie, so
  * protected content (the decrypting `/view` route of encrypted scopes) is
@@ -57,15 +68,15 @@ const fetchStored = async (
  * object URL.
  *
  * Urls on a foreign origin pass through untouched — public objects and legacy
- * hosts render directly. The viewer revokes the object URL when it closes.
+ * hosts render directly. `FileViewer` owns what this mints: it revokes the
+ * object URL when it moves to another file and when it closes.
  */
 export const createBlobUrlResolver =
 	(options: BlobUrlResolverOptions) =>
-	async (file: { url: string }): Promise<string> => {
+	async (file: { url: string; mimeType?: string }): Promise<string> => {
 		if (!isOwnUrl(file.url, options.baseUrl)) return file.url
-		return URL.createObjectURL(
-			await (await fetchStored(file.url, options)).blob()
-		)
+		const blob = await (await fetchStored(file.url, options)).blob()
+		return URL.createObjectURL(retyped(blob, file.mimeType))
 	}
 
 /**
