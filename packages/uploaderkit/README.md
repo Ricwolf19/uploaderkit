@@ -531,7 +531,8 @@ import { Uploader } from 'uploaderkit/ui'
 	maxFiles={3}
 	label='Evidence'
 	description='PDF or photo, up to 8 MB'
-	stored={saved} // already persisted, rendered above the dropzone
+	stored={saved} // already persisted, rendered on the filesPosition side
+	filesPosition='below' // keep the drop target from sliding down the page
 	onRemoveStored={forget} // delete from storage here — see Removal below
 	confirmRemove // gate it behind a dialog; or { title, message }
 	onUploaded={persist}
@@ -546,6 +547,11 @@ for the files still waiting; `'submit'` hands the send to your form through
 `controllerRef` (see [Upload trigger](#upload-trigger--select-vs-manual)). `resolveViewUrl` re-signs a
 private object right before previewing it, for the case where the stored URL
 has expired.
+
+`filesPosition` decides which side of the dropzone the file lists sit on. It
+defaults to `'above'`, the historical layout; `'below'` keeps the zone anchored,
+which matters when files are added one at a time — otherwise every addition
+pushes the target the user is aiming at further down.
 
 The dropzone also accepts a **pasted** file while focused (screenshots land as
 uploads), and `capture` makes a touch device offer its camera instead of the

@@ -261,3 +261,40 @@ describe('SlottedUploader removal', () => {
 		expect(removeStrategy).not.toHaveBeenCalled()
 	})
 })
+
+describe('Uploader filesPosition', () => {
+	const renderAt = (filesPosition?: 'above' | 'below') =>
+		render(
+			<Uploader
+				scopes={scopes}
+				scope='docs'
+				entityId='e1'
+				strategy={async file => stored(file.name)}
+				stored={[stored('contrato.pdf')]}
+				filesPosition={filesPosition}
+			/>
+		)
+
+	// The drop target must not slide down the page as files pile up above it.
+	const dropzoneIsAfterList = () => {
+		// The zone by its input rather than its role — the stored file's own
+		// view/remove controls are buttons too.
+		const zone = document
+			.querySelector('input[type="file"]')
+			?.closest('[role="button"]') as HTMLElement
+		const item = screen.getByText('contrato.pdf')
+		return !!(
+			zone.compareDocumentPosition(item) & Node.DOCUMENT_POSITION_PRECEDING
+		)
+	}
+
+	it('lists above the dropzone by default — the shape every consumer already has', () => {
+		renderAt()
+		expect(dropzoneIsAfterList()).toBe(true)
+	})
+
+	it("'below' anchors the dropzone and pushes the list under it", () => {
+		renderAt('below')
+		expect(dropzoneIsAfterList()).toBe(false)
+	})
+})

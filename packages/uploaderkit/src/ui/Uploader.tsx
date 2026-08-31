@@ -29,8 +29,16 @@ export type UploaderProps<T extends Record<string, ScopeConfig>> = Omit<
 	uploadOn?: UiUploadTrigger
 	label?: string
 	description?: string
-	/** Files already persisted, rendered above the dropzone. */
+	/** Files already persisted, rendered on the {@link filesPosition} side. */
 	stored?: StoredFile[]
+	/**
+	 * Which side of the dropzone the file lists sit on. @defaultValue 'above'
+	 *
+	 * `'below'` keeps the drop target anchored: with the lists above it, every
+	 * added file pushes the zone further down, so the control the user is
+	 * repeatedly aiming at moves under the cursor.
+	 */
+	filesPosition?: 'above' | 'below'
 	/**
 	 * Notified when a persisted file is forgotten — the app's bookkeeping
 	 * (clear the DB reference). Storage deletion belongs to `removeStrategy`.
@@ -90,6 +98,7 @@ export const Uploader = <T extends Record<string, ScopeConfig>>({
 	label,
 	description,
 	stored = [],
+	filesPosition = 'above',
 	onRemoveStored,
 	confirmRemove,
 	resolveViewUrl,
@@ -172,10 +181,8 @@ export const Uploader = <T extends Record<string, ScopeConfig>>({
 
 	const confirmCopy = typeof confirmRemove === 'object' ? confirmRemove : {}
 
-	return (
-		<div className={cn('space-y-2', className)}>
-			{label && <p className='text-ui-fg text-sm font-medium'>{label}</p>}
-
+	const fileList = (
+		<>
 			{stored.map(file => (
 				<StoredFileItem
 					key={file.key}
@@ -201,6 +208,14 @@ export const Uploader = <T extends Record<string, ScopeConfig>>({
 					/>
 				)
 			})}
+		</>
+	)
+
+	return (
+		<div className={cn('space-y-2', className)}>
+			{label && <p className='text-ui-fg text-sm font-medium'>{label}</p>}
+
+			{filesPosition === 'above' && fileList}
 
 			<Dropzone
 				accept={uploader.accept}
@@ -227,6 +242,8 @@ export const Uploader = <T extends Record<string, ScopeConfig>>({
 					{description ?? uploader.accept.replaceAll(',', ' · ')}
 				</p>
 			</Dropzone>
+
+			{filesPosition === 'below' && fileList}
 
 			{manual && uploader.hasPending && (
 				<button

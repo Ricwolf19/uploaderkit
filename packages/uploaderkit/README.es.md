@@ -521,7 +521,8 @@ import { Uploader } from 'uploaderkit/ui'
 	maxFiles={3}
 	label='Evidencia'
 	description='PDF o foto, hasta 8 MB'
-	stored={saved} // ya persistidos, se renderizan arriba de la zona
+	stored={saved} // ya persistidos, del lado que diga filesPosition
+	filesPosition='below' // que la zona de drop no se deslice hacia abajo
 	onRemoveStored={forget} // borrar en remoto sigue siendo decisión tuya
 	confirmRemove // segundo paso en diálogo; o { title, message }
 	onUploaded={persist}
@@ -537,6 +538,11 @@ envío a tu formulario a través de `controllerRef` (ver
 [Disparo de la subida](#disparo-de-la-subida--select-vs-manual)).
 `resolveViewUrl` vuelve a firmar un objeto privado justo antes de
 previsualizarlo, para el caso en que la URL guardada ya expiró.
+
+`filesPosition` decide de qué lado de la zona de drop se acomodan las listas de
+archivos. Por defecto `'above'`, el layout de siempre; `'below'` mantiene la
+zona anclada, lo que importa cuando los archivos se agregan de a uno — si no,
+cada agregado empuja hacia abajo el blanco al que el usuario está apuntando.
 
 La zona también acepta un archivo **pegado** mientras tiene el foco (los
 screenshots aterrizan como subidas), y `capture` hace que un dispositivo táctil
