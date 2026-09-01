@@ -31,12 +31,7 @@ export {
 	resolveLabels,
 	type UploaderLabels,
 } from './labels'
-export {
-	assertProviderSupports,
-	resolveKey,
-	ScopeError,
-	validateForScope,
-} from './scopes'
+export { assertProviderSupports, ScopeError, validateForScope } from './scopes'
 export type {
 	AudioExtension,
 	CertificateExtension,
@@ -84,3 +79,8 @@ export {
 	resolveScopePrefix,
 	type ScopeConfig,
 } from './defineScopes'
+// Same reason: `resolveKey` shadows the one in `./scopes`, whose traversal
+// guard is a substring test and so rejects legitimate names like `… p.m..png`.
+// This one judges by path segment. `sanitizeFileName` is the other half —
+// apply it in your `path()` and the guard never has anything to reject.
+export { resolveKey, sanitizeFileName } from './sanitizeFileName'
