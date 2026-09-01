@@ -298,3 +298,26 @@ describe('Uploader filesPosition', () => {
 		expect(dropzoneIsAfterList()).toBe(false)
 	})
 })
+
+describe('Uploader renderFiles', () => {
+	it('replaces the default rows and still reports the state behind them', () => {
+		render(
+			<Uploader
+				scopes={scopes}
+				scope='docs'
+				entityId='e1'
+				strategy={async file => stored(file.name)}
+				stored={[stored('contrato.pdf')]}
+				renderFiles={slot => (
+					<p>
+						{slot.stored.length} archivo(s) · vacío: {String(slot.isEmpty)}
+					</p>
+				)}
+			/>
+		)
+
+		expect(screen.getByText('1 archivo(s) · vacío: false')).toBeTruthy()
+		// The standard row is gone — the slot replaced it, not wrapped it.
+		expect(screen.queryByText('contrato.pdf')).toBeNull()
+	})
+})

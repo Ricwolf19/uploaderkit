@@ -32,7 +32,11 @@ export {
 	SlottedUploader,
 	type SlottedUploaderProps,
 } from './ui/SlottedUploader'
-export { Uploader, type UploaderProps } from './ui/Uploader'
+export {
+	Uploader,
+	type UploaderFilesSlot,
+	type UploaderProps,
+} from './ui/Uploader'
 export {
 	useFileViewer,
 	type UseFileViewerOptions,

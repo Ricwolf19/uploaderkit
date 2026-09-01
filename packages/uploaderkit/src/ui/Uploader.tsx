@@ -3,7 +3,7 @@ import { type ReactNode, useEffect, useState } from 'react'
 import type { ScopeConfig } from '../defineScopes'
 import type { UseUploaderOptions } from '../react'
 import { useUploader } from '../react'
-import type { RemoveStrategy } from '../react/types'
+import type { RemoveStrategy, UploaderFile } from '../react/types'
 import { useUploaderLabels } from '../react/UploaderProvider'
 import type { StoredFile } from '../types'
 import { warnDev } from '../warn'
@@ -17,6 +17,32 @@ import { UploadCloudIcon } from './icons'
 import { StoredFileItem } from './StoredFileItem'
 import { useCoarsePointer } from './useCoarsePointer'
 import { useFileViewer } from './useFileViewer'
+
+/**
+ * What {@link UploaderProps.renderFiles} is handed.
+ *
+ * Both the raw state and the default rows already built, so a custom layout can
+ * keep the standard item and only change where — and among what — it sits.
+ */
+export type UploaderFilesSlot = {
+	/** Files already persisted, exactly as passed in `stored`. */
+	stored: StoredFile[]
+	/** Files staged in this session, each with its live upload status. */
+	staged: UploaderFile[]
+	/** The default rows. Place them, wrap them, or drop them entirely. */
+	nodes: ReactNode
+	/** Nothing persisted and nothing staged. */
+	isEmpty: boolean
+	/** Open a persisted file in the built-in viewer. */
+	view: (file: StoredFile) => void
+	/** Forget a staged file. */
+	remove: (id: string) => void
+	/**
+	 * Forget a persisted file, honouring `confirmRemove` and `removeStrategy`.
+	 * `undefined` when this uploader accepts no removals.
+	 */
+	removeStored?: (file: StoredFile) => void
+}
 
 export type UploaderProps<T extends Record<string, ScopeConfig>> = Omit<
 	UseUploaderOptions<T>,
@@ -39,6 +65,17 @@ export type UploaderProps<T extends Record<string, ScopeConfig>> = Omit<
 	 * repeatedly aiming at moves under the cursor.
 	 */
 	filesPosition?: 'above' | 'below'
+	/**
+	 * Lay the file lists out yourself: a grid of thumbnails, a single summary
+	 * line, a count folded into your own card — whatever the screen needs.
+	 *
+	 * It replaces the rows, not their place: the result still renders on the
+	 * {@link filesPosition} side. For a layout the zone itself has to be part of
+	 * (files BESIDE the dropzone, files inside your own frame), skip this skin
+	 * and compose `useUploader` with the exported `Dropzone` / `FileItem` /
+	 * `StoredFileItem` — nothing here is unavailable there.
+	 */
+	renderFiles?: (slot: UploaderFilesSlot) => ReactNode
 	/**
 	 * Notified when a persisted file is forgotten — the app's bookkeeping
 	 * (clear the DB reference). Storage deletion belongs to `removeStrategy`.
@@ -99,6 +136,7 @@ export const Uploader = <T extends Record<string, ScopeConfig>>({
 	description,
 	stored = [],
 	filesPosition = 'above',
+	renderFiles,
 	onRemoveStored,
 	confirmRemove,
 	resolveViewUrl,
@@ -181,7 +219,7 @@ export const Uploader = <T extends Record<string, ScopeConfig>>({
 
 	const confirmCopy = typeof confirmRemove === 'object' ? confirmRemove : {}
 
-	const fileList = (
+	const defaultRows = (
 		<>
 			{stored.map(file => (
 				<StoredFileItem
@@ -210,6 +248,18 @@ export const Uploader = <T extends Record<string, ScopeConfig>>({
 			})}
 		</>
 	)
+
+	const fileList = renderFiles
+		? renderFiles({
+				stored,
+				staged: files,
+				nodes: defaultRows,
+				isEmpty: stored.length === 0 && files.length === 0,
+				view: viewer.open,
+				remove: removeFile,
+				removeStored: requestRemove,
+			})
+		: defaultRows
 
 	return (
 		<div className={cn('space-y-2', className)}>
