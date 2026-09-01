@@ -1,3 +1,5 @@
+import { Readable, Writable } from 'node:stream'
+
 import { describe, expect, it, vi } from 'vitest'
 
 import { createMemoryProvider } from '../adapters/memory'
@@ -68,25 +70,34 @@ describe('view handlers', () => {
 		expect(provider.objects.get(stored.key)!.body).not.toEqual(PDF)
 
 		const headers = new Map<string, string>()
-		let body: unknown
-		const res = {
-			status: vi.fn(() => res),
-			json: vi.fn(),
-			setHeader: (name: string, value: string) => headers.set(name, value),
-			send: (payload: unknown) => {
-				body = payload
-			},
-		}
+		// A writable, not a `send` spy: the handler pipes now, so buffering the
+		// whole object never happens and there is no payload to capture.
+		const chunks: Buffer[] = []
+		const res = Object.assign(
+			new Writable({
+				write(chunk: Buffer, _encoding, done) {
+					chunks.push(Buffer.from(chunk))
+					done()
+				},
+			}),
+			{
+				status: vi.fn(() => res),
+				json: vi.fn(),
+				setHeader: (name: string, value: string) => headers.set(name, value),
+			}
+		)
 
 		await handlers.view(
 			{
 				params: { scope: 'secret', entityId: 'c1' },
 				query: { key: stored.key },
 			},
-			res
+			// A Writable is exactly what the handler needs and more than the
+			// structural type describes, so the cast is the honest direction.
+			res as unknown as Parameters<typeof handlers.view>[1]
 		)
 
-		expect(new Uint8Array(body as Uint8Array)).toEqual(PDF)
+		expect(new Uint8Array(Buffer.concat(chunks))).toEqual(PDF)
 		expect(headers.get('Content-Type')).toBe('application/pdf')
 		expect(headers.get('Cache-Control')).toBe('private, no-store')
 		expect(headers.get('Content-Disposition')).toContain('inline')
@@ -128,6 +139,46 @@ describe('view handlers', () => {
 		expect(response.status).toBe(200)
 		expect(response.headers.get('Cache-Control')).toBe('private, no-store')
 		expect(new Uint8Array(await response.arrayBuffer())).toEqual(PDF)
+	})
+
+	it('a stream that dies mid-response never tries to answer again', async () => {
+		const { storage } = await seed()
+		// The provider hands a stream that fails after the first chunk — the
+		// same shape as a GCM tag mismatch, which only surfaces at the end.
+		const readStream = vi.spyOn(storage, 'readStream').mockResolvedValue(
+			new Readable({
+				read() {
+					this.push(Buffer.from('partial'))
+					this.destroy(new Error('tag mismatch'))
+				},
+			})
+		)
+		const handlers = createExpressStorageHandlers(storage)
+
+		const res = Object.assign(
+			new Writable({
+				write(_chunk: Buffer, _encoding, done) {
+					done()
+				},
+			}),
+			{
+				status: vi.fn(() => res),
+				json: vi.fn(),
+				setHeader: vi.fn(),
+				send: vi.fn(),
+			}
+		)
+
+		await handlers.view(
+			{ params: { scope: 'secret', entityId: 'c1' }, query: { key: 'k' } },
+			res
+		)
+
+		// Headers already went out; a second answer would be
+		// ERR_HTTP_HEADERS_SENT on a real Express response.
+		expect(res.status).not.toHaveBeenCalled()
+		expect(res.json).not.toHaveBeenCalled()
+		readStream.mockRestore()
 	})
 
 	it('an unauthorized request never reaches the bytes', async () => {

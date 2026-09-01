@@ -1,6 +1,7 @@
 import type { Bucket } from '@google-cloud/storage'
 
-import type { StorageProvider } from '../types'
+import type { StreamingStorageProvider } from '../server/storage'
+
 export type GcsProviderOptions = {
 	/** Objects with `visibility: 'public'` land here and get a direct URL. */
 	publicBucket: Bucket
@@ -32,7 +33,7 @@ export const createGcsProvider = ({
 	publicBucket,
 	privateBucket,
 	publicUrl = defaultPublicUrl,
-}: GcsProviderOptions): StorageProvider => {
+}: GcsProviderOptions): StreamingStorageProvider => {
 	// Under uniform bucket-level access, per-object `makePublic()` fails
 	// silently and a "public" upload 403s in every <img> — a bug that only
 	// shows as broken avatars. Probe the first public upload's URL once and
@@ -88,6 +89,13 @@ export const createGcsProvider = ({
 			const bucket = await locate(key)
 			const [data] = await bucket.file(key).download()
 			return new Uint8Array(data)
+		},
+
+		// `download()` buffers the whole object; a 20MB document costs that per
+		// concurrent request, and materialization serves many at once.
+		getStream: async key => {
+			const bucket = await locate(key)
+			return bucket.file(key).createReadStream()
 		},
 
 		delete: async key => {

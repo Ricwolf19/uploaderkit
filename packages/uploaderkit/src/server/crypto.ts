@@ -1,10 +1,79 @@
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
+import {
+	createCipheriv,
+	createDecipheriv,
+	type DecipherGCM,
+	randomBytes,
+} from 'node:crypto'
+import { Transform, type TransformCallback } from 'node:stream'
 
 import { ScopeError } from '../scopes'
-import type { CryptoHooks } from '../types'
+import type { StreamingCryptoHooks } from './storage'
+
 const IV_LENGTH = 12
 const TAG_LENGTH = 16
+const HEADER_LENGTH = IV_LENGTH + TAG_LENGTH
 const KEY_PATTERN = /^[0-9a-fA-F]{64}$/
+
+/**
+ * Decrypts as bytes arrive instead of after they all have.
+ *
+ * The `[iv][tag][ciphertext]` layout is what makes this possible at all: GCM
+ * needs the tag before it can decrypt, and here it leads the object rather
+ * than trailing it. The header may straddle several chunks, so it is
+ * accumulated until complete and whatever followed it in that chunk is fed
+ * onward — a 12-byte first chunk would otherwise be dropped.
+ */
+class GcmDecryptStream extends Transform {
+	#header = Buffer.alloc(0)
+	#decipher: DecipherGCM | null = null
+
+	constructor(private readonly key: Buffer) {
+		super()
+	}
+
+	override _transform(
+		chunk: Buffer,
+		_encoding: BufferEncoding,
+		done: TransformCallback
+	): void {
+		let body = chunk
+		if (!this.#decipher) {
+			this.#header = Buffer.concat([this.#header, chunk])
+			if (this.#header.length < HEADER_LENGTH) return done()
+
+			this.#decipher = createDecipheriv(
+				'aes-256-gcm',
+				this.key,
+				this.#header.subarray(0, IV_LENGTH)
+			) as DecipherGCM
+			this.#decipher.setAuthTag(this.#header.subarray(IV_LENGTH, HEADER_LENGTH))
+			body = this.#header.subarray(HEADER_LENGTH)
+			if (body.length === 0) return done()
+		}
+
+		try {
+			this.push(this.#decipher.update(body))
+			done()
+		} catch (error) {
+			done(error as Error)
+		}
+	}
+
+	override _flush(done: TransformCallback): void {
+		if (!this.#decipher) {
+			return done(new Error('Encrypted object ended before its header'))
+		}
+		try {
+			// Throws when the tag does not match. By now the consumer already has
+			// the plaintext, so tampering surfaces as a broken stream, not as a
+			// clean rejection — the cost of streaming, stated in `CryptoHooks`.
+			this.push(this.#decipher.final())
+			done()
+		} catch (error) {
+			done(error as Error)
+		}
+	}
+}
 
 /**
  * Reference cipher for `encrypt: true` scopes: AES-256-GCM, layout
@@ -17,7 +86,7 @@ const KEY_PATTERN = /^[0-9a-fA-F]{64}$/
  *
  * @see AGENTS.md §4.4
  */
-export const createAesGcmCrypto = (hexKey: string): CryptoHooks => {
+export const createAesGcmCrypto = (hexKey: string): StreamingCryptoHooks => {
 	if (!KEY_PATTERN.test(hexKey)) {
 		throw new ScopeError(
 			'createAesGcmCrypto: the key must be exactly 64 hex characters (32 bytes). Generate one with `openssl rand -hex 32`.'
@@ -41,5 +110,7 @@ export const createAesGcmCrypto = (hexKey: string): CryptoHooks => {
 			decipher.setAuthTag(tag)
 			return Buffer.concat([decipher.update(ciphertext), decipher.final()])
 		},
+		decryptStream: source =>
+			(source as NodeJS.ReadableStream).pipe(new GcmDecryptStream(key)),
 	}
 }

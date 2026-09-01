@@ -1,11 +1,9 @@
+import { Readable } from 'node:stream'
+
 import type { ExtendedScopeRegistry, ScopeConfig } from '../defineScopes'
 import { resolveReplaceMode, resolveScopePrefix } from '../defineScopes'
-import {
-	assertProviderSupports,
-	resolveKey,
-	ScopeError,
-	validateForScope,
-} from '../scopes'
+import { resolveKey } from '../sanitizeFileName'
+import { assertProviderSupports, ScopeError, validateForScope } from '../scopes'
 import type {
 	CryptoHooks,
 	FileLike,
@@ -31,9 +29,9 @@ export class StorageRequestError extends Error {
 
 export type CreateStorageOptions<T extends Record<string, ScopeConfig>> = {
 	scopes: ExtendedScopeRegistry<T>
-	provider: StorageProvider
+	provider: StreamingStorageProvider
 	/** Required when any scope declares `encrypt`. The app owns the cipher. */
-	crypto?: CryptoHooks
+	crypto?: StreamingCryptoHooks
 	/** Lifetime of signed URLs, in seconds. @defaultValue 300 */
 	signedUrlTtl?: number
 	/**
@@ -63,12 +61,50 @@ export type UploadInput = {
  */
 export type UploadResult = StoredFile & { replaced: string[] }
 
+/**
+ * A provider that can also read without buffering. Additive and optional, so
+ * every existing provider still satisfies it — `readStream` falls back to
+ * `get` when the method is absent.
+ *
+ * Declared here rather than in the core because the core's `StorageProvider`
+ * is the published contract; widening it there would be a breaking change for
+ * anyone implementing it.
+ */
+export type StreamingStorageProvider = StorageProvider & {
+	/**
+	 * Reads without holding the object in memory. Serving a 20MB document
+	 * through `get` costs its full size in RAM per concurrent request.
+	 */
+	getStream?(key: string): Promise<Readable>
+}
+
+/** {@link CryptoHooks} that can also decrypt progressively. */
+export type StreamingCryptoHooks = CryptoHooks & {
+	/**
+	 * Decrypts as bytes arrive, so a read never materializes the plaintext.
+	 *
+	 * Weigh the cost: plaintext reaches the consumer BEFORE the authentication
+	 * tag is verified, so tampering surfaces as a stream that fails at the end,
+	 * mid-delivery. `decrypt` verifies before returning a single byte.
+	 *
+	 * There is no streaming counterpart for encryption on purpose — AES-GCM
+	 * only knows its tag once the input ends, and the layout writes it first.
+	 */
+	decryptStream?: (source: Readable) => Readable
+}
+
 export type StorageService<
 	T extends Record<string, ScopeConfig> = Record<string, ScopeConfig>,
 > = {
 	upload(input: UploadInput): Promise<UploadResult>
 	/** Raw bytes, decrypted when the scope is encrypted. */
 	read(input: { scope: string; key: string }): Promise<Uint8Array>
+	/**
+	 * The same content as a stream, so serving a file costs a buffer's worth of
+	 * memory instead of the whole object. Falls back to `read` when the provider
+	 * or the cipher cannot stream, so it is always safe to prefer.
+	 */
+	readStream(input: { scope: string; key: string }): Promise<Readable>
 	remove(input: { scope: string; key: string }): Promise<boolean>
 	/** Fresh expiring URL for a private object. Throws on public scopes. */
 	signedUrl(input: {
@@ -204,6 +240,33 @@ export const createStorage = <T extends Record<string, ScopeConfig>>({
 		return scope.encrypt ? crypto!.decrypt(data) : data
 	}
 
+	/**
+	 * The same read without holding the object in memory.
+	 *
+	 * Degrades honestly: a provider with no `getStream`, or an encrypted scope
+	 * whose crypto has no `decryptStream`, falls back to `read` and is wrapped
+	 * in a one-chunk stream. Callers get one shape either way and never have to
+	 * ask which capabilities are present.
+	 */
+	const readStream = async ({
+		scope: name,
+		key,
+	}: {
+		scope: string
+		key: string
+	}): Promise<Readable> => {
+		const scope = getScope(name)
+		const canStream =
+			provider.getStream && (!scope.encrypt || crypto?.decryptStream)
+
+		if (!canStream) {
+			return Readable.from([Buffer.from(await read({ scope: name, key }))])
+		}
+
+		const source = (await provider.getStream!(key)) as Readable
+		return scope.encrypt ? (crypto!.decryptStream!(source) as Readable) : source
+	}
+
 	const remove = ({ scope: name, key }: { scope: string; key: string }) => {
 		const scope = getScope(name)
 		// The history contract, enforced where it cannot be bypassed: a scope
@@ -242,6 +305,7 @@ export const createStorage = <T extends Record<string, ScopeConfig>>({
 	return {
 		upload,
 		read,
+		readStream,
 		remove,
 		signedUrl,
 		list: prefix => provider.list(prefix),

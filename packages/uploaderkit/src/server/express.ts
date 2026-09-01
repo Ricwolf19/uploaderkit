@@ -1,3 +1,5 @@
+import { pipeline } from 'node:stream/promises'
+
 import { fromMulterFile, getMimeType } from '../file'
 import { ScopeError } from '../scopes'
 import type { ScopeConfig } from '../types'
@@ -135,7 +137,7 @@ export const createExpressStorageHandlers = <
 					throw new StorageRequestError('Solicitud incompleta', 400)
 				}
 
-				const bytes = await storage.read({ scope, key })
+				const body = await storage.readStream({ scope, key })
 				const fileName = key.split('/').pop() ?? 'archivo'
 				res.setHeader('Content-Type', getMimeType(fileName))
 				res.setHeader(
@@ -144,7 +146,21 @@ export const createExpressStorageHandlers = <
 				)
 				// Decrypted content must never land in a shared cache.
 				res.setHeader('Cache-Control', 'private, no-store')
-				res.send(Buffer.from(bytes))
+
+				// Piped, not buffered: a 20MB document would otherwise sit in
+				// memory in full, per concurrent reader. `pipeline` is what
+				// destroys the response if the source fails — which for an
+				// encrypted object includes a failed authentication tag, since
+				// that is only known once the last byte has gone out.
+				try {
+					await pipeline(body, res as unknown as NodeJS.WritableStream)
+				} catch {
+					// The status line and part of the body are already out, so
+					// there is nothing left to answer with: `pipeline` destroyed
+					// the socket, and `fail()` here would throw
+					// ERR_HTTP_HEADERS_SENT over the real error.
+					return
+				}
 			} catch (error) {
 				fail(res, error)
 			}
