@@ -403,6 +403,22 @@ useUploader({
 Los slots con nombre ya renombran a `{slot}.{ext}` — ese contrato sigue
 siendo suyo.
 
+### Nombres de archivo seguros
+
+`sanitizeFileName` convierte el nombre del usuario en un segmento de key seguro
+— ASCII, minúsculas, una sola extensión, sin sintaxis de ruta. Llámalo
+**dentro** del `path()` de tu scope, para que cliente y servidor deriven la
+misma key:
+
+```ts
+path: (id, file) => `Docs/${id}/${sanitizeFileName(file.name)}`
+```
+
+La guarda de traversal detrás de `resolveKey` juzga por segmento de ruta, no
+por substring: `Screenshot … 4.18.54 p.m..png` carga `..` sin ser traversal
+jamás, y un screenshot de macOS es el caso común, no uno de esquina. La guarda
+es el respaldo; el sanitizador es el fix.
+
 ### Estrategias de subida
 
 Una estrategia es el transporte físico de un archivo. El hook es dueño del
@@ -543,6 +559,38 @@ previsualizarlo, para el caso en que la URL guardada ya expiró.
 archivos. Por defecto `'above'`, el layout de siempre; `'below'` mantiene la
 zona anclada, lo que importa cuando los archivos se agregan de a uno — si no,
 cada agregado empuja hacia abajo el blanco al que el usuario está apuntando.
+
+`renderFiles` reemplaza las filas mismas. Recibe los archivos persistidos, los
+de la sesión con su estado vivo, las filas default ya construidas y los
+callbacks de ver/quitar — así una pantalla renderiza un grid de miniaturas, una
+línea de resumen o un conteo dentro de su propia tarjeta:
+
+```tsx
+<Uploader
+	{...props}
+	filesPosition='below'
+	renderFiles={({ staged, stored, isEmpty, remove }) =>
+		isEmpty ? null : (
+			<ul className='grid grid-cols-3 gap-2'>
+				{stored.map(file => (
+					<li key={file.key}>{file.fileName}</li>
+				))}
+				{staged.map(file => (
+					<li key={file.id} onClick={() => remove(file.id)}>
+						{file.file.name} · {file.status}
+					</li>
+				))}
+			</ul>
+		)
+	}
+/>
+```
+
+Cambia las filas, no su lugar: el resultado sigue renderizando del lado de
+`filesPosition`. Para un layout del que la zona misma es parte — archivos AL
+LADO de la zona, todo dentro de tu propio marco — sáltate esta piel y compón
+`useUploader` con los `Dropzone`, `FileItem` y `StoredFileItem` exportados.
+Nada de aquí falta allá.
 
 La zona también acepta un archivo **pegado** mientras tiene el foco (los
 screenshots aterrizan como subidas), y `capture` hace que un dispositivo táctil
@@ -829,6 +877,20 @@ objeto huérfano no vale fallarla.
 La `url` de un objeto público lleva una huella corta `?v=` de su contenido, así
 un scope de key estable (un avatar) deja de servir la imagen anterior desde un
 CDN o la caché del navegador después de sobrescribir.
+
+#### Lecturas en streaming
+
+`storage.readStream({ scope, key })` sirve un archivo sin sostenerlo en memoria
+— por `get`, un documento de 20MB cuesta su tamaño completo en RAM por lector
+concurrente. El handler `view` de Express lo pipea. Degrada con honestidad: un
+provider sin `getStream`, o un scope cifrado cuyo crypto no trae
+`decryptStream`, cae a la lectura bufferizada envuelta en un stream de un solo
+chunk — quien llama recibe siempre la misma forma.
+
+El trade del descifrado en streaming, dicho donde decides: el plaintext llega
+al consumidor **antes** de verificar el tag GCM, así que una alteración
+aparece como un stream que se rompe al final — `read()` verifica antes de
+entregar un solo byte.
 
 ### Express
 

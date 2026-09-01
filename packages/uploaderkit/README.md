@@ -415,6 +415,21 @@ useUploader({
 
 Named slots already rename to `{slot}.{ext}` — that contract stays theirs.
 
+### Safe file names
+
+`sanitizeFileName` turns a user's file name into a safe key segment — ASCII,
+lower case, one extension, no path syntax. Call it **inside** your scope's
+`path()`, so client and server derive the same key:
+
+```ts
+path: (id, file) => `Docs/${id}/${sanitizeFileName(file.name)}`
+```
+
+The traversal guard behind `resolveKey` judges by path segment, not by
+substring: `Screenshot … 4.18.54 p.m..png` carries `..` without ever being
+traversal, and a macOS screenshot is the common case, not a corner one. The
+guard is the backstop; the sanitizer is the fix.
+
 ### Upload strategies
 
 A strategy is the physical transport for one file. The hook owns state, the
@@ -552,6 +567,38 @@ has expired.
 defaults to `'above'`, the historical layout; `'below'` keeps the zone anchored,
 which matters when files are added one at a time — otherwise every addition
 pushes the target the user is aiming at further down.
+
+`renderFiles` replaces the rows themselves. It receives the persisted files, the
+staged ones with their live status, the default rows already built, and the
+view/remove callbacks — so a screen can render a thumbnail grid, a single
+summary line, or a count folded into its own card:
+
+```tsx
+<Uploader
+	{...props}
+	filesPosition='below'
+	renderFiles={({ staged, stored, isEmpty, remove }) =>
+		isEmpty ? null : (
+			<ul className='grid grid-cols-3 gap-2'>
+				{stored.map(file => (
+					<li key={file.key}>{file.fileName}</li>
+				))}
+				{staged.map(file => (
+					<li key={file.id} onClick={() => remove(file.id)}>
+						{file.file.name} · {file.status}
+					</li>
+				))}
+			</ul>
+		)
+	}
+/>
+```
+
+It changes the rows, not their place: the result still renders on the
+`filesPosition` side. For a layout the zone itself has to be part of — files
+BESIDE the dropzone, everything inside your own frame — skip this skin and
+compose `useUploader` with the exported `Dropzone`, `FileItem` and
+`StoredFileItem`. Nothing here is unavailable there.
 
 The dropzone also accepts a **pasted** file while focused (screenshots land as
 uploads), and `capture` makes a touch device offer its camera instead of the
@@ -830,6 +877,20 @@ asked for did happen, and a stale object is not worth failing it over.
 A public object's `url` carries a short `?v=` fingerprint of its content, so a
 stable-key scope (an avatar) does not keep serving the previous image from a
 CDN or the browser cache after an overwrite.
+
+#### Streaming reads
+
+`storage.readStream({ scope, key })` serves a file without holding it in
+memory — through `get` a 20MB document costs its full size in RAM per
+concurrent reader. The Express `view` handler pipes it. It degrades honestly:
+a provider without `getStream`, or an encrypted scope whose crypto lacks
+`decryptStream`, falls back to a buffered read wrapped in a one-chunk stream,
+so callers always get one shape.
+
+The trade of streaming decryption, stated where you decide: plaintext reaches
+the consumer **before** the GCM tag is verified, so tampering surfaces as a
+stream that breaks at the end — `read()` verifies before returning a single
+byte.
 
 ### Express
 
