@@ -1,5 +1,5 @@
-import { type DragEvent as ReactDragEvent, useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useCallback } from 'react'
+import { DropAnywhereOverlay, useDropAnywhere } from 'uploaderkit/presets'
 import { useUploader } from 'uploaderkit/react'
 import { FileItem } from 'uploaderkit/ui'
 
@@ -10,12 +10,11 @@ import { DemoCard, DemoSplit, Hint, ResultPanel } from '../shell/ui'
 const strategy = createFakeStrategy({ duration: 1600 })
 
 /**
- * The drop-anywhere recipe: the whole page is the target. A window-level drag
- * counter raises a full-screen glass overlay; dropping anywhere routes the
- * files into the uploader.
+ * The drop-anywhere recipe, now two imports: `useDropAnywhere` watches the
+ * window and delivers each drop exactly once, `DropAnywhereOverlay` draws the
+ * invitation while a drag is alive.
  */
 export const DropAnywhereExample = () => {
-	const [draggingOver, setDraggingOver] = useState(false)
 	const uploader = useUploader({
 		scopes: demoScopes,
 		scope: 'demo-image',
@@ -24,43 +23,11 @@ export const DropAnywhereExample = () => {
 		multiple: true,
 		uploadOn: 'select',
 	})
-
-	useEffect(() => {
-		// Depth counter — same reason as the package's Dropzone.
-		let depth = 0
-		const onEnter = (event: globalThis.DragEvent) => {
-			if (!event.dataTransfer?.types.includes('Files')) return
-			depth += 1
-			setDraggingOver(true)
-		}
-		const onLeave = () => {
-			depth = Math.max(0, depth - 1)
-			if (depth === 0) setDraggingOver(false)
-		}
-		const onOver = (event: globalThis.DragEvent) => event.preventDefault()
-		const onDrop = () => {
-			depth = 0
-			setDraggingOver(false)
-		}
-		window.addEventListener('dragenter', onEnter)
-		window.addEventListener('dragleave', onLeave)
-		window.addEventListener('dragover', onOver)
-		window.addEventListener('drop', onDrop)
-		return () => {
-			window.removeEventListener('dragenter', onEnter)
-			window.removeEventListener('dragleave', onLeave)
-			window.removeEventListener('dragover', onOver)
-			window.removeEventListener('drop', onDrop)
-		}
-	}, [])
-
-	const onOverlayDrop = (event: ReactDragEvent) => {
-		event.preventDefault()
-		setDraggingOver(false)
-		if (event.dataTransfer.files.length > 0) {
-			void uploader.addFiles(event.dataTransfer.files)
-		}
-	}
+	const onFiles = useCallback(
+		(files: File[]) => void uploader.addFiles(files),
+		[uploader]
+	)
+	const { dragging } = useDropAnywhere({ onFiles, accept: uploader.accept })
 
 	const stored = uploader.files
 		.filter(file => file.stored)
@@ -93,10 +60,11 @@ export const DropAnywhereExample = () => {
 					</DemoCard>
 
 					<Hint>
-						El truco es un <strong>contador de profundidad</strong> en
-						<code> dragenter/dragleave</code> a nivel window — un boolean
-						parpadea al cruzar hijos. El overlay portalea a{' '}
-						<code>document.body</code> y solo existe mientras el drag vive.
+						<code>useDropAnywhere</code> lleva el contador de profundidad a
+						nivel window y es el <strong>único</strong> que maneja{' '}
+						<code>drop</code>; el overlay es <code>pointer-events-none</code>,
+						así que un archivo nunca llega dos veces. <code>accept</code> filtra
+						con la misma sintaxis que un <code>&lt;input&gt;</code>.
 					</Hint>
 				</>
 			}
@@ -109,25 +77,7 @@ export const DropAnywhereExample = () => {
 				) : undefined
 			}
 		>
-			{draggingOver &&
-				createPortal(
-					<div
-						onDrop={onOverlayDrop}
-						onDragOver={event => event.preventDefault()}
-						className='animate-ui-fade-in fixed inset-0 z-1000 flex items-center justify-center bg-blue-600/20 p-6 backdrop-blur-sm'
-					>
-						<div className='pointer-events-none flex flex-col items-center gap-3 rounded-3xl border-2 border-dashed border-blue-400 bg-white/90 px-12 py-10 shadow-2xl backdrop-blur-md'>
-							<span className='text-5xl'>📥</span>
-							<p className='text-lg font-semibold text-slate-800'>
-								Suelta los archivos
-							</p>
-							<p className='text-sm text-slate-500'>
-								Cualquier lugar de la pantalla cuenta
-							</p>
-						</div>
-					</div>,
-					document.body
-				)}
+			<DropAnywhereOverlay open={dragging} />
 		</DemoSplit>
 	)
 }

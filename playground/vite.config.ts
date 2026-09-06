@@ -22,6 +22,10 @@ export default defineConfig({
 		alias: [
 			{ find: 'uploaderkit/react', replacement: pkg('react.ts') },
 			{ find: 'uploaderkit/ui', replacement: pkg('ui.ts') },
+			{
+				find: 'uploaderkit/presets',
+				replacement: pkg('presets.ts'),
+			},
 			{ find: /^uploaderkit$/, replacement: pkg('index.ts') },
 		],
 	},
