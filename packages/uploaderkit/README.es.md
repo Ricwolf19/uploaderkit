@@ -824,6 +824,23 @@ tenga que escribirlo.
 
 ---
 
+## Presets
+
+Las recetas que el playground venía demostrando ya son componentes, bajo `uploaderkit/presets`. Cada uno compone `./react` y `./ui`, lee los mismos tokens `--color-ui-*` y las mismas etiquetas, y es opcional: cuando uno no encaja, `useUploader` + `Dropzone` + `FileItem` siguen siendo el piso.
+
+| Preset                                    | Qué es                                                                                                                                                                                                                                                                                     |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `useDropAnywhere` + `DropAnywhereOverlay` | Toda la ventana como destino de arrastre. El hook cuenta la profundidad de `dragenter`/`dragleave` a nivel window y es el **único** que maneja `drop`, así que un archivo nunca llega dos veces; el overlay es sólo visual (`pointer-events-none`). `accept` usa la sintaxis de `<input>`. |
+| `AvatarUploader`                          | Una foto que es su propio control: clic o arrastre encima, un anillo de progreso la rodea, `onUploaded` devuelve el `StoredFile`. Sube al seleccionar a propósito.                                                                                                                         |
+| `GalleryUploader`                         | Una cuadrícula de miniaturas: primero los `stored` persistidos, luego los archivos en vuelo con su barrido de progreso, acciones al hover, la casilla de agregar como dropzone y `FileViewer` sobre todo el conjunto.                                                                      |
+
+```tsx
+const uploader = useUploader({ scopes, scope: 'attachments', entityId, strategy, multiple: true })
+const { dragging } = useDropAnywhere({ onFiles: files => uploader.addFiles(files), accept: uploader.accept })
+
+<DropAnywhereOverlay open={dragging} />
+```
+
 ## Servidor
 
 ### `createStorage`

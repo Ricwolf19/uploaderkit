@@ -824,6 +824,23 @@ to write any.
 
 ---
 
+## Presets
+
+The recipes the playground kept demonstrating are components now, under `uploaderkit/presets`. Each composes `./react` and `./ui`, reads the same `--color-ui-*` tokens and the same labels, and stays optional: when one does not fit, `useUploader` + `Dropzone` + `FileItem` are still the floor.
+
+| Preset                                    | What it is                                                                                                                                                                                                                                                |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useDropAnywhere` + `DropAnywhereOverlay` | The whole window as a drop target. The hook counts `dragenter`/`dragleave` depth at window level and is the **only** `drop` handler, so a file never arrives twice; the overlay is purely visual (`pointer-events-none`). `accept` uses `<input>` syntax. |
+| `AvatarUploader`                          | A picture that is its own control: click or drop on it, a progress ring closes around it, `onUploaded` hands back the `StoredFile`. Uploads on select on purpose.                                                                                         |
+| `GalleryUploader`                         | A thumbnail grid: persisted `stored` tiles first, in-flight files with a progress wash, hover view/remove, the add tile as the dropzone, and `FileViewer` over the whole set.                                                                             |
+
+```tsx
+const uploader = useUploader({ scopes, scope: 'attachments', entityId, strategy, multiple: true })
+const { dragging } = useDropAnywhere({ onFiles: files => uploader.addFiles(files), accept: uploader.accept })
+
+<DropAnywhereOverlay open={dragging} />
+```
+
 ## Server
 
 ### `createStorage`
