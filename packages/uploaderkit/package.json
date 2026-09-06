@@ -125,6 +125,16 @@
 				"default": "./dist/ui.cjs"
 			}
 		},
+		"./presets": {
+			"import": {
+				"types": "./dist/presets.d.ts",
+				"default": "./dist/presets.js"
+			},
+			"require": {
+				"types": "./dist/presets.d.cts",
+				"default": "./dist/presets.cjs"
+			}
+		},
 		"./adapters/s3": {
 			"import": {
 				"types": "./dist/adapters/s3.d.ts",
@@ -174,6 +184,15 @@
 				"react",
 				"react-dom"
 			]
+		},
+		{
+			"name": "presets",
+			"path": "dist/presets.js",
+			"limit": "14 kB",
+			"ignore": [
+				"react",
+				"react-dom"
+			]
 		}
 	],
 	"devDependencies": {
@@ -213,6 +232,9 @@
 			],
 			"ui": [
 				"./dist/ui.d.ts"
+			],
+			"presets": [
+				"./dist/presets.d.ts"
 			],
 			"adapters/s3": [
 				"./dist/adapters/s3.d.ts"

@@ -5,6 +5,7 @@ export default defineConfig({
 		index: 'src/index.ts',
 		react: 'src/react.ts',
 		ui: 'src/ui.ts',
+		presets: 'src/presets.ts',
 		server: 'src/server.ts',
 		'server/express': 'src/server/express.ts',
 		'server/next': 'src/server/next.ts',

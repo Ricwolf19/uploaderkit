@@ -82,6 +82,18 @@ export type UploaderLabels = {
 	confirmReplaceTitle: string
 	/** Confirm dialog body before replacing. Receives current and incoming names. */
 	confirmReplaceMessage: (current: string, incoming: string) => string
+	/** `DropAnywhereOverlay` heading while a drag is over the window. */
+	dropAnywhereTitle: string
+	/** `DropAnywhereOverlay` second line. */
+	dropAnywhereHint: string
+	/** `AvatarUploader`: hover label and aria-label of the picture. */
+	avatarChange: string
+	/** `AvatarUploader`: overlay while a file hovers the picture. */
+	avatarDropHere: string
+	/** `AvatarUploader`: the remove link under the picture. */
+	avatarRemove: string
+	/** `GalleryUploader`: caption of the add tile. */
+	galleryAdd: string
 }
 
 /** Spanish copy — select it once: `<UploaderProvider language='es'>`. */
@@ -126,6 +138,12 @@ export const ES_LABELS: UploaderLabels = {
 	confirmReplaceTitle: 'Reemplazar archivo',
 	confirmReplaceMessage: (current, incoming) =>
 		`¿Reemplazar "${current}" por "${incoming}"?`,
+	dropAnywhereTitle: 'Suelta los archivos aquí',
+	dropAnywhereHint: 'Cualquier lugar de la pantalla cuenta',
+	avatarChange: 'Cambiar foto',
+	avatarDropHere: 'Suelta aquí',
+	avatarRemove: 'Quitar foto',
+	galleryAdd: 'Agregar',
 }
 
 /** English copy — the package default, so the kit ships globalized. */
@@ -169,6 +187,12 @@ export const DEFAULT_LABELS: UploaderLabels = {
 	confirmReplaceTitle: 'Replace file',
 	confirmReplaceMessage: (current, incoming) =>
 		`Replace "${current}" with "${incoming}"?`,
+	dropAnywhereTitle: 'Drop the files here',
+	dropAnywhereHint: 'Anywhere on the screen counts',
+	avatarChange: 'Change photo',
+	avatarDropHere: 'Drop here',
+	avatarRemove: 'Remove photo',
+	galleryAdd: 'Add',
 }
 
 /** The merge every entry point runs: partial overrides over the default. */
