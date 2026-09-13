@@ -1,5 +1,6 @@
 import { Readable } from 'node:stream'
 
+import { resolveLabels, type UploaderLabels } from '../labels'
 import { resolveReplaceMode, resolveScopePrefix } from '../scopes'
 import { resolveKey } from '../scopes'
 import { assertProviderSupports, ScopeError, validateForScope } from '../scopes'
@@ -45,6 +46,15 @@ export type CreateStorageOptions<T extends Record<string, ScopeConfig>> = {
 		entityId: string
 		key: string
 	}) => string
+	/**
+	 * Copy for every `StorageRequestError` this service words, and for the
+	 * validation messages it answers with. Omitted means English.
+	 *
+	 * Hand it the same object the client renders with: the server re-runs the
+	 * very validation the browser ran, so a mismatch here is the one place a
+	 * user sees the same rejection twice, in two languages.
+	 */
+	labels?: Partial<UploaderLabels>
 }
 
 export type UploadInput = {
@@ -115,6 +125,13 @@ export type StorageService<
 	}): Promise<string>
 	list(prefix: string): Promise<{ key: string; size: number }[]>
 	scopes: ScopeRegistry<T>
+	/**
+	 * The resolved copy, exposed so the framework adapters word their own
+	 * failures with it. One `labels` on `createStorage` therefore covers the
+	 * whole round trip — the service and the route that wraps it cannot end up
+	 * answering in two languages.
+	 */
+	labels: UploaderLabels
 }
 
 const toHex = (buffer: ArrayBuffer): string =>
@@ -133,7 +150,10 @@ export const createStorage = <T extends Record<string, ScopeConfig>>({
 	crypto,
 	signedUrlTtl = 300,
 	encryptedUrl,
+	labels,
 }: CreateStorageOptions<T>): StorageService<T> => {
+	const copy = resolveLabels(labels)
+
 	assertProviderSupports(scopes, provider)
 
 	const encrypted = scopes.names.filter(name => scopes.get(name).encrypt)
@@ -150,7 +170,7 @@ export const createStorage = <T extends Record<string, ScopeConfig>>({
 
 	const getScope = (name: string): ScopeConfig => {
 		if (!scopes.has(name)) {
-			throw new StorageRequestError('Destino de archivo no válido', 404)
+			throw new StorageRequestError(copy.unknownScope, 404)
 		}
 		return scopes.get(name)
 	}
@@ -165,7 +185,7 @@ export const createStorage = <T extends Record<string, ScopeConfig>>({
 
 		// The client already validated; running the same function again here is
 		// the part that makes the client check advisory instead of load-bearing.
-		const result = await validateForScope(scopes, name, file)
+		const result = await validateForScope(scopes, name, file, copy)
 		if (!result.valid) throw new StorageRequestError(result.message, 422)
 
 		const key = resolveKey(scopes, name, entityId, file)
@@ -310,5 +330,6 @@ export const createStorage = <T extends Record<string, ScopeConfig>>({
 		signedUrl,
 		list: prefix => provider.list(prefix),
 		scopes,
+		labels: copy,
 	}
 }

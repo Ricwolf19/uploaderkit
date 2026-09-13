@@ -44,8 +44,12 @@ export type UploaderLabels = {
 	next: string
 	/** Fallback when a strategy rejects without a message. */
 	uploadFailed: string
+	/** The request never reached the server — offline, DNS, CORS preflight. */
+	uploadNetworkFailed: string
 	/** Message when the DELETE transport refused or failed. */
 	removeFailed: string
+	/** A stored file could not be fetched for preview or for bytes. */
+	readFailed: string
 	/** A batch past `maxFiles`. Receives the cap. */
 	maxFilesReached: (max: number) => string
 	/** A file picked for a slot whose extension the slot rejects. */
@@ -94,6 +98,36 @@ export type UploaderLabels = {
 	avatarRemove: string
 	/** `GalleryUploader`: caption of the add tile. */
 	galleryAdd: string
+
+	// Validation — `validateFile` and everything that calls it. These run on
+	// BOTH sides: the browser shows them, the server answers them as JSON.
+	/** A name the extension check cannot read at all. */
+	fileHasNoExtension: string
+	/** The extension is not on the scope's list. Receives that list. */
+	formatNotAllowed: (extensions: string[]) => string
+	/** Zero bytes — a failed drag, a cancelled save. */
+	fileIsEmpty: string
+	/** Over the scope ceiling. Receives both sizes already formatted. */
+	fileTooLarge: (size: string, max: string) => string
+	/** Fewer bytes than the signature needs: a truncated transfer. */
+	fileIncomplete: string
+	/** The leading bytes contradict the extension — renamed, or corrupt. */
+	contentDoesNotMatchExtension: string
+
+	// Server — the HTTP surface. `createStorage` and both framework adapters
+	// resolve the same object, so one `labels` wires the whole round trip.
+	/** 400: a route parameter or body field the handler needs is missing. */
+	requestIncomplete: string
+	/** 401: `getUser` answered null. */
+	unauthorized: string
+	/** 400: an upload arrived with no file part. */
+	fileRequired: string
+	/** 404: the URL named a scope the registry does not declare. */
+	unknownScope: string
+	/** 500: the catch-all when a handler throws something unrecognized. */
+	processingFailed: string
+	/** Download name for a key that ends in nothing usable. */
+	unnamedFile: string
 }
 
 /** Spanish copy — select it once: `<UploaderProvider language='es'>`. */
@@ -114,7 +148,9 @@ export const ES_LABELS: UploaderLabels = {
 	previous: 'Anterior',
 	next: 'Siguiente',
 	uploadFailed: 'No se pudo subir el archivo',
+	uploadNetworkFailed: 'No se pudo subir el archivo. Revisa tu conexión',
 	removeFailed: 'No se pudo borrar el archivo del almacenamiento',
+	readFailed: 'No se pudo cargar el archivo',
 	maxFilesReached: max => `Máximo ${max} archivo(s)`,
 	slotFormatNotAllowed: (slotLabel, extensions) =>
 		`${slotLabel}: formato no permitido. Se aceptan: ${extensions.join(', ')}`,
@@ -144,6 +180,22 @@ export const ES_LABELS: UploaderLabels = {
 	avatarDropHere: 'Suelta aquí',
 	avatarRemove: 'Quitar foto',
 	galleryAdd: 'Agregar',
+
+	fileHasNoExtension: 'El archivo no tiene extensión',
+	formatNotAllowed: extensions =>
+		`Formato no permitido. Se aceptan: ${extensions.join(', ')}`,
+	fileIsEmpty: 'El archivo está vacío',
+	fileTooLarge: (size, max) => `El archivo pesa ${size} y el máximo es ${max}`,
+	fileIncomplete: 'El archivo está incompleto',
+	contentDoesNotMatchExtension:
+		'El contenido del archivo no corresponde a su extensión',
+
+	requestIncomplete: 'Solicitud incompleta',
+	unauthorized: 'No autorizado',
+	fileRequired: 'Archivo requerido',
+	unknownScope: 'Destino de archivo no válido',
+	processingFailed: 'No se pudo procesar el archivo',
+	unnamedFile: 'archivo',
 }
 
 /** English copy — the package default, so the kit ships globalized. */
@@ -164,7 +216,9 @@ export const DEFAULT_LABELS: UploaderLabels = {
 	previous: 'Previous',
 	next: 'Next',
 	uploadFailed: 'The file could not be uploaded',
+	uploadNetworkFailed: 'The file could not be uploaded. Check your connection',
 	removeFailed: 'The file could not be removed from storage',
+	readFailed: 'The file could not be loaded',
 	maxFilesReached: max => `At most ${max} file(s)`,
 	slotFormatNotAllowed: (slotLabel, extensions) =>
 		`${slotLabel}: format not allowed. Accepted: ${extensions.join(', ')}`,
@@ -193,6 +247,22 @@ export const DEFAULT_LABELS: UploaderLabels = {
 	avatarDropHere: 'Drop here',
 	avatarRemove: 'Remove photo',
 	galleryAdd: 'Add',
+
+	fileHasNoExtension: 'The file has no extension',
+	formatNotAllowed: extensions =>
+		`Format not allowed. Accepted: ${extensions.join(', ')}`,
+	fileIsEmpty: 'The file is empty',
+	fileTooLarge: (size, max) =>
+		`The file weighs ${size} and the maximum is ${max}`,
+	fileIncomplete: 'The file is incomplete',
+	contentDoesNotMatchExtension: 'The file contents do not match its extension',
+
+	requestIncomplete: 'Incomplete request',
+	unauthorized: 'Unauthorized',
+	fileRequired: 'A file is required',
+	unknownScope: 'Unknown file destination',
+	processingFailed: 'The file could not be processed',
+	unnamedFile: 'file',
 }
 
 /** The merge every entry point runs: partial overrides over the default. */
@@ -203,6 +273,6 @@ export const resolveLabels = (
 
 /**
  * @deprecated English IS {@link DEFAULT_LABELS} now. A shallow copy, kept so
- * 3.x consumers passing it keep working.
+ * 1.x consumers passing it keep working.
  */
 export const EN_LABELS: UploaderLabels = { ...DEFAULT_LABELS }

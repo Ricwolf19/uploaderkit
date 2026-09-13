@@ -112,7 +112,7 @@ const wait = (ms: number, signal: AbortSignal) =>
 	new Promise<void>((resolve, reject) => {
 		const abort = () => {
 			clearTimeout(timer)
-			const error = new Error('Carga cancelada')
+			const error = new Error('Upload cancelled')
 			error.name = 'AbortError'
 			reject(error)
 		}
@@ -299,7 +299,7 @@ export const useUploader = <T extends Record<string, ScopeConfig>>({
 
 			const next: UploaderFile[] = []
 			for (const file of batch) {
-				const result = await validateForScope(scopes, scope, file)
+				const result = await validateForScope(scopes, scope, file, copy)
 				next.push({
 					id: createId(),
 					file,

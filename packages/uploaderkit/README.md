@@ -77,7 +77,7 @@ Scopes both sides validate against, a headless uploader with progress / abort / 
 - **Retry with backoff + concurrency cap** — opt-in resilience for flaky networks: transient strategy failures retry behind exponential backoff, and large batches queue behind a concurrency limit.
 - **Confirmation dialogs built in** — `confirmRemove` / `confirmReplace` gate destructive file actions behind an accessible dialog (focus lands on cancel), and `ConfirmDialog` is exported for app-level use.
 - **Paste and camera capture** — a focused dropzone accepts a pasted screenshot, and `capture` opens the mobile camera directly.
-- **Translatable copy** — every user-facing string flows through a labels object. Spanish by default, `EN_LABELS` included, any language via a partial override.
+- **Translatable copy** — every user-facing string flows through a labels object, on the client AND on the server. English by default, `ES_LABELS` included, any language via a partial override.
 - **Rebrandable theme** — the styled layer reads `--color-ui-*` CSS variables so one `:root` override rebrands the whole styled layer.
 - **Sizes, icons and motion** — `size='sm' | 'md'` compacts every row and zone, `icon` swaps (or removes) the dropzone glyph, and the whole surface animates: rows fade in, the drag state scales the zone, overlays enter and exit with a transition, the uploading indicator pulses.
 - **Touch-first by default** — on coarse pointers the zone reads as a tap target ("Toca para elegir un archivo") with press feedback instead of advertising a drag nobody can do; `capture` opens the camera directly.
@@ -776,22 +776,61 @@ drop as a direct fill — no trip through the bulk zone's matcher.
 
 ### Labels — every string is replaceable
 
-All user-facing copy flows through one object. Spanish is the default;
-`EN_LABELS` ships ready, and any partial override wins over the base:
+All user-facing copy flows through one object, `UploaderLabels`. English is the
+default; Spanish ships as `ES_LABELS`. Select a language once at the root:
 
 ```tsx
-import { EN_LABELS } from 'uploaderkit'
+import { UploaderProvider } from 'uploaderkit/react'
 
-// whole surface in English
-<Uploader {...props} labels={EN_LABELS} />
-
-// or reword a single string
-<Uploader {...props} labels={{ dropPrompt: 'Suelta aquí tu factura' }} />
+;<UploaderProvider language='es'>
+	<App />
+</UploaderProvider>
 ```
 
-Hooks accept the same `labels` option, which covers the messages they emit
-(slot format not allowed, file without slot, the upload-failed fallback). See
-`UploaderLabels` for the full key list.
+Any partial override wins over that base, per component or per hook:
+
+```tsx
+<Uploader {...props} labels={{ dropPrompt: 'Drop your invoice here' }} />
+```
+
+#### The copy reaches further than the components
+
+The object is not only for markup — it words the validation messages and the
+server's HTTP responses too, which is what keeps one rejection from arriving in
+two languages:
+
+```ts
+import { ES_LABELS, validateForScope } from 'uploaderkit'
+
+const result = await validateForScope(scopes, 'invoices', file, ES_LABELS)
+// result.message is Spanish
+```
+
+| Surface                                       | How it takes the copy              |
+| --------------------------------------------- | ---------------------------------- |
+| `Uploader`, `SlottedUploader`, presets        | `labels` prop, over the provider   |
+| `useUploader`, `useSlottedUploader`           | `labels` option, over the provider |
+| `validateFile`, `validateFiles`               | `labels` in `ValidationOptions`    |
+| `validateForScope`                            | 4th argument                       |
+| `createXhrUploadStrategy`, the view resolvers | `labels` option                    |
+| `createStorage` — and both framework adapters | `labels` option, once              |
+
+On the server, one option covers the whole round trip: `createStorage` resolves
+the copy and republishes it as `storage.labels`, which is exactly where
+`createExpressStorageHandlers` and `createNextStorageHandlers` read from, so a
+route can never answer in a different language than the service behind it.
+
+```ts
+import { ES_LABELS } from 'uploaderkit'
+
+const storage = createStorage({ scopes, provider, labels: ES_LABELS })
+// 401 → "No autorizado"; a rejected upload → the same 422 text the browser showed
+```
+
+`ScopeError` is the one exception, deliberately: it flags a wiring bug, stays
+English, and is never serialized to a client.
+
+See `UploaderLabels` for the full key list.
 
 ### Theming
 
@@ -1078,7 +1117,7 @@ adapters map to JSON.
 
 | Import path                   | Contents                                                                                                                                                   |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `uploaderkit`                 | `defineScopes`, `validateForScope`, `resolveKey`, `toAcceptAttribute`, `formatFileSize`, `KB`/`MB`/`GB`, `ScopeError`, `DEFAULT_LABELS`/`EN_LABELS`, types |
+| `uploaderkit`                 | `defineScopes`, `validateForScope`, `resolveKey`, `toAcceptAttribute`, `formatFileSize`, `KB`/`MB`/`GB`, `ScopeError`, `DEFAULT_LABELS`/`ES_LABELS`, types |
 | `uploaderkit/react`           | `useUploader`, `useSlottedUploader`, `createXhrUploadStrategy`, `compressImage`, slot matchers, types                                                      |
 | `uploaderkit/ui`              | `Uploader`, `SlottedUploader`, `Dropzone`, `FileItem`, `FileViewer`, `ConfirmDialog`, `cn`                                                                 |
 | `uploaderkit/server`          | `createStorage`, `createAesGcmCrypto`, `StorageRequestError`, types                                                                                        |

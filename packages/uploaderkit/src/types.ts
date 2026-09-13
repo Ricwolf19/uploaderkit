@@ -1,3 +1,5 @@
+import type { UploaderLabels } from './labels'
+
 /**
  * Every type in this file must be usable from a browser and from a server.
  * That is what lets one scope definition drive the client's guards and the
@@ -81,6 +83,11 @@ export type ValidationOptions = {
 	maxBytes?: number
 	allowedExtensions?: FileExtension[]
 	validateMagicNumbers?: boolean
+	/**
+	 * Copy for the messages these checks produce. Omitted means English — the
+	 * same rule the rest of the package follows.
+	 */
+	labels?: Partial<UploaderLabels>
 	/** Runs last, only when every built-in check passed. */
 	customValidation?: (file: FileLike) => Promise<ValidationResult>
 }

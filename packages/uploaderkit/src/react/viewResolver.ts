@@ -1,3 +1,5 @@
+import { resolveLabels, type UploaderLabels } from '../labels'
+
 export type BlobUrlResolverOptions = {
 	/** Prefix for app-relative urls (`/storage/...`) — usually the api origin. */
 	baseUrl: string
@@ -11,6 +13,8 @@ export type BlobUrlResolverOptions = {
 	 * @defaultValue `fetch`'s own (`'same-origin'`)
 	 */
 	credentials?: RequestCredentials
+	/** Copy for the failure this throws. Defaults to English. */
+	labels?: Partial<UploaderLabels>
 }
 
 /**
@@ -36,7 +40,7 @@ const isOwnUrl = (url: string, baseUrl: string): boolean => {
  */
 const fetchStored = async (
 	url: string,
-	{ baseUrl, headers, credentials }: BlobUrlResolverOptions
+	{ baseUrl, headers, credentials, labels }: BlobUrlResolverOptions
 ): Promise<Response> => {
 	const own = isOwnUrl(url, baseUrl)
 	const response = await fetch(
@@ -44,7 +48,7 @@ const fetchStored = async (
 		own ? { headers: headers?.(), credentials } : undefined
 	)
 	if (!response.ok) {
-		throw new Error('No se pudo cargar el archivo')
+		throw new Error(resolveLabels(labels).readFailed)
 	}
 	return response
 }

@@ -1,4 +1,5 @@
 import { getMimeType } from '../file'
+import type { UploaderLabels } from '../labels'
 import { ScopeError } from '../scopes'
 import type { ScopeConfig } from '../types'
 import { StorageRequestError, type StorageService } from './storage'
@@ -21,26 +22,24 @@ export type NextStorageOptions = {
 
 const param = async (
 	context: NextRouteContext,
-	name: string
+	name: string,
+	copy: UploaderLabels
 ): Promise<string> => {
 	const value = (await context.params)[name]
 	if (typeof value !== 'string' || value.length === 0) {
-		throw new StorageRequestError('Solicitud incompleta', 400)
+		throw new StorageRequestError(copy.requestIncomplete, 400)
 	}
 	return value
 }
 
-const fail = (error: unknown): Response => {
+const fail = (error: unknown, copy: UploaderLabels): Response => {
 	if (error instanceof StorageRequestError) {
 		return Response.json({ message: error.message }, { status: error.status })
 	}
 	// ScopeError is a wiring bug: surface it to the developer via the thrown
 	// stack (Next logs it), never its text to the user.
 	if (error instanceof ScopeError) throw error
-	return Response.json(
-		{ message: 'No se pudo procesar el archivo' },
-		{ status: 500 }
-	)
+	return Response.json({ message: copy.processingFailed }, { status: 500 })
 }
 
 /**
@@ -58,6 +57,9 @@ export const createNextStorageHandlers = <
 	storage: StorageService<T>,
 	{ authorize }: NextStorageOptions = {}
 ) => {
+	// The copy `createStorage` was configured with — never a second source.
+	const copy = storage.labels
+
 	const guard = async (
 		request: Request,
 		scope: string,
@@ -65,7 +67,7 @@ export const createNextStorageHandlers = <
 	): Promise<{ userId?: string }> => {
 		if (!authorize) return {}
 		const user = await authorize(request, { scope, entityId })
-		if (user === null) throw new StorageRequestError('No autorizado', 401)
+		if (user === null) throw new StorageRequestError(copy.unauthorized, 401)
 		return user
 	}
 
@@ -75,14 +77,14 @@ export const createNextStorageHandlers = <
 			context: NextRouteContext
 		): Promise<Response> => {
 			try {
-				const scope = await param(context, 'scope')
-				const entityId = await param(context, 'entityId')
+				const scope = await param(context, 'scope', copy)
+				const entityId = await param(context, 'entityId', copy)
 				const user = await guard(request, scope, entityId)
 
 				const form = await request.formData()
 				const file = form.get('file')
 				if (!(file instanceof File)) {
-					throw new StorageRequestError('Archivo requerido', 400)
+					throw new StorageRequestError(copy.fileRequired, 400)
 				}
 
 				const stored = await storage.upload({
@@ -93,7 +95,7 @@ export const createNextStorageHandlers = <
 				})
 				return Response.json(stored)
 			} catch (error) {
-				return fail(error)
+				return fail(error, copy)
 			}
 		},
 
@@ -102,17 +104,17 @@ export const createNextStorageHandlers = <
 			context: NextRouteContext
 		): Promise<Response> => {
 			try {
-				const scope = await param(context, 'scope')
-				const entityId = await param(context, 'entityId')
+				const scope = await param(context, 'scope', copy)
+				const entityId = await param(context, 'entityId', copy)
 				await guard(request, scope, entityId)
 
 				const { key } = (await request.json()) as { key?: string }
-				if (!key) throw new StorageRequestError('Solicitud incompleta', 400)
+				if (!key) throw new StorageRequestError(copy.requestIncomplete, 400)
 
 				const deleted = await storage.remove({ scope, key })
 				return Response.json({ deleted })
 			} catch (error) {
-				return fail(error)
+				return fail(error, copy)
 			}
 		},
 
@@ -122,16 +124,16 @@ export const createNextStorageHandlers = <
 			context: NextRouteContext
 		): Promise<Response> => {
 			try {
-				const scope = await param(context, 'scope')
-				const entityId = await param(context, 'entityId')
+				const scope = await param(context, 'scope', copy)
+				const entityId = await param(context, 'entityId', copy)
 				await guard(request, scope, entityId)
 
 				const url = new URL(request.url)
 				const key = url.searchParams.get('key')
-				if (!key) throw new StorageRequestError('Solicitud incompleta', 400)
+				if (!key) throw new StorageRequestError(copy.requestIncomplete, 400)
 
 				const bytes = await storage.read({ scope, key })
-				const fileName = key.split('/').pop() ?? 'archivo'
+				const fileName = key.split('/').pop() ?? copy.unnamedFile
 				return new Response(new Uint8Array(bytes), {
 					headers: {
 						'Content-Type': getMimeType(fileName),
@@ -140,7 +142,7 @@ export const createNextStorageHandlers = <
 					},
 				})
 			} catch (error) {
-				return fail(error)
+				return fail(error, copy)
 			}
 		},
 
@@ -149,13 +151,13 @@ export const createNextStorageHandlers = <
 			context: NextRouteContext
 		): Promise<Response> => {
 			try {
-				const scope = await param(context, 'scope')
-				const entityId = await param(context, 'entityId')
+				const scope = await param(context, 'scope', copy)
+				const entityId = await param(context, 'entityId', copy)
 				await guard(request, scope, entityId)
 
 				const url = new URL(request.url)
 				const key = url.searchParams.get('key')
-				if (!key) throw new StorageRequestError('Solicitud incompleta', 400)
+				if (!key) throw new StorageRequestError(copy.requestIncomplete, 400)
 
 				const signed = await storage.signedUrl({
 					scope,
@@ -164,7 +166,7 @@ export const createNextStorageHandlers = <
 				})
 				return Response.json({ url: signed })
 			} catch (error) {
-				return fail(error)
+				return fail(error, copy)
 			}
 		},
 	}

@@ -66,7 +66,7 @@ export const DEMO_GROUPS: DemoGroup[] = [
 			{
 				id: 'custom',
 				label: 'Personalización',
-				blurb: 'size, icon, labels EN y re-brand por CSS variables.',
+				blurb: 'size, icon, labels ES y re-brand por CSS variables.',
 				render: CustomizationExample,
 			},
 		],

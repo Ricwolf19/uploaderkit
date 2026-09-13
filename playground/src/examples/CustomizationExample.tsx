@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { EN_LABELS } from 'uploaderkit'
+import { ES_LABELS } from 'uploaderkit'
 import { Uploader } from 'uploaderkit/ui'
 
 import { createFakeStrategy } from '../fakeStrategy'
@@ -37,12 +37,12 @@ const CameraIcon = () => (
 
 /**
  * Everything the presentation layer lets you swap without forking: labels
- * (EN_LABELS or per-string), size, the dropzone icon, and the whole color /
- * radius theme via CSS variables scoped to any container.
+ * (a whole language, or one string), size, the dropzone icon, and the whole
+ * color / radius theme via CSS variables scoped to any container.
  */
 export const CustomizationExample = () => (
 	<div className='mx-auto w-full max-w-lg space-y-5'>
-		<DemoCard title='size=sm · labels EN · icon propio'>
+		<DemoCard title='size=sm · labels ES · icon propio'>
 			<Uploader
 				scopes={demoScopes}
 				scope='demo-image'
@@ -50,10 +50,10 @@ export const CustomizationExample = () => (
 				strategy={strategy}
 				multiple
 				size='sm'
-				labels={EN_LABELS}
+				labels={ES_LABELS}
 				icon={<CameraIcon />}
 				capture='environment'
-				description='Compact rows, English copy, camera on mobile'
+				description='Filas compactas, copy en español, cámara en móvil'
 			/>
 		</DemoCard>
 

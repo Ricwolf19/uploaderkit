@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { createMemoryProvider } from '../adapters/memory'
 import { MB } from '../constants'
+import { DEFAULT_LABELS, ES_LABELS } from '../labels'
 import { defineScopes } from '../scopes'
 import { createExpressStorageHandlers } from './express'
 import { createNextStorageHandlers } from './next'
@@ -195,5 +196,60 @@ describe('view handlers', () => {
 		)
 
 		expect(response.status).toBe(401)
+	})
+})
+
+describe('handler copy', () => {
+	/** Drives a handler with a missing route param and reports what it answered. */
+	const answerFor = async (labels?: typeof ES_LABELS) => {
+		const storage = createStorage({
+			scopes,
+			provider: createMemoryProvider(),
+			crypto,
+			encryptedUrl: viewPath,
+			...(labels ? { labels } : {}),
+		})
+		const handlers = createExpressStorageHandlers(storage)
+		const json = vi.fn()
+		const res = {
+			status: vi.fn(() => res),
+			json,
+			setHeader: vi.fn(),
+			send: vi.fn(),
+		}
+
+		await handlers.view(
+			{ params: { scope: 'secret' }, query: { key: 'k' } },
+			res as unknown as Parameters<typeof handlers.view>[1]
+		)
+		return (json.mock.calls[0]?.[0] as { message: string }).message
+	}
+
+	it('answers in English when createStorage was given no labels', async () => {
+		expect(await answerFor()).toBe(DEFAULT_LABELS.requestIncomplete)
+	})
+
+	// The adapter reads `storage.labels`, so configuring the service is the only
+	// place a language is chosen — the route cannot drift from it.
+	it('answers with the copy createStorage was configured with', async () => {
+		expect(await answerFor(ES_LABELS)).toBe(ES_LABELS.requestIncomplete)
+	})
+
+	it('re-validates with that same copy', async () => {
+		const storage = createStorage({
+			scopes,
+			provider: createMemoryProvider(),
+			crypto,
+			encryptedUrl: viewPath,
+			labels: ES_LABELS,
+		})
+
+		await expect(
+			storage.upload({
+				scope: 'secret',
+				entityId: 'c1',
+				file: { ...fileLike, name: 'foto.png' },
+			})
+		).rejects.toThrow(ES_LABELS.formatNotAllowed(['pdf']))
 	})
 })

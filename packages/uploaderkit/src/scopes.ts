@@ -1,5 +1,6 @@
 import { FILE_CATEGORY_CONFIG } from './constants'
 import { toAcceptAttribute } from './file'
+import type { UploaderLabels } from './labels'
 import type {
 	FileLike,
 	ReplaceMode,
@@ -199,11 +200,16 @@ export const defineScopes = <T extends Record<string, ScopeConfig>>(
 /**
  * The one validation call. Client runs it for feedback, server runs it for
  * safety, both against the same scope.
+ *
+ * `labels` is what keeps the two answers identical in wording as well as in
+ * verdict: the hook passes the copy it renders with, `createStorage` passes
+ * the copy it was configured with.
  */
 export const validateForScope = async <T extends Record<string, ScopeConfig>>(
 	registry: ScopeRegistry<T>,
 	name: string,
-	file: FileLike
+	file: FileLike,
+	labels?: Partial<UploaderLabels>
 ): Promise<ValidationResult> => {
 	const scope = registry.get(name)
 	const category = scope.category
@@ -214,6 +220,7 @@ export const validateForScope = async <T extends Record<string, ScopeConfig>>(
 		maxBytes: scope.maxBytes,
 		allowedExtensions: scope.accept,
 		validateMagicNumbers: category?.validateMagicNumbers ?? true,
+		labels,
 	})
 }
 

@@ -1,6 +1,7 @@
 import { pipeline } from 'node:stream/promises'
 
 import { fromMulterFile, getMimeType } from '../file'
+import type { UploaderLabels } from '../labels'
 import { ScopeError } from '../scopes'
 import type { ScopeConfig } from '../types'
 import { StorageRequestError, type StorageService } from './storage'
@@ -43,19 +44,27 @@ export type ExpressStorageOptions = {
 	) => Promise<{ userId?: string } | null>
 }
 
-const param = (req: ExpressishRequest, name: string): string => {
+const param = (
+	req: ExpressishRequest,
+	name: string,
+	copy: UploaderLabels
+): string => {
 	const value = req.params[name]
-	if (!value) throw new StorageRequestError('Solicitud incompleta', 400)
+	if (!value) throw new StorageRequestError(copy.requestIncomplete, 400)
 	return value
 }
 
-const fail = (res: ExpressishResponse, error: unknown): void => {
+const fail = (
+	res: ExpressishResponse,
+	error: unknown,
+	copy: UploaderLabels
+): void => {
 	if (error instanceof StorageRequestError) {
 		res.status(error.status).json({ message: error.message })
 		return
 	}
 	if (error instanceof ScopeError) throw error
-	res.status(500).json({ message: 'No se pudo procesar el archivo' })
+	res.status(500).json({ message: copy.processingFailed })
 }
 
 /**
@@ -74,6 +83,9 @@ export const createExpressStorageHandlers = <
 	storage: StorageService<T>,
 	{ authorize }: ExpressStorageOptions = {}
 ) => {
+	// The copy `createStorage` was configured with — never a second source.
+	const copy = storage.labels
+
 	const guard = async (
 		req: ExpressishRequest,
 		scope: string,
@@ -81,18 +93,18 @@ export const createExpressStorageHandlers = <
 	): Promise<{ userId?: string }> => {
 		if (!authorize) return {}
 		const user = await authorize(req, { scope, entityId })
-		if (user === null) throw new StorageRequestError('No autorizado', 401)
+		if (user === null) throw new StorageRequestError(copy.unauthorized, 401)
 		return user
 	}
 
 	return {
 		upload: async (req: ExpressishRequest, res: ExpressishResponse) => {
 			try {
-				const scope = param(req, 'scope')
-				const entityId = param(req, 'entityId')
+				const scope = param(req, 'scope', copy)
+				const entityId = param(req, 'entityId', copy)
 				const user = await guard(req, scope, entityId)
 
-				if (!req.file) throw new StorageRequestError('Archivo requerido', 400)
+				if (!req.file) throw new StorageRequestError(copy.fileRequired, 400)
 
 				const stored = await storage.upload({
 					scope,
@@ -102,22 +114,22 @@ export const createExpressStorageHandlers = <
 				})
 				res.status(200).json(stored)
 			} catch (error) {
-				fail(res, error)
+				fail(res, error, copy)
 			}
 		},
 
 		remove: async (req: ExpressishRequest, res: ExpressishResponse) => {
 			try {
-				const scope = param(req, 'scope')
-				const entityId = param(req, 'entityId')
+				const scope = param(req, 'scope', copy)
+				const entityId = param(req, 'entityId', copy)
 				await guard(req, scope, entityId)
 
 				const key = (req.body as { key?: string } | undefined)?.key
-				if (!key) throw new StorageRequestError('Solicitud incompleta', 400)
+				if (!key) throw new StorageRequestError(copy.requestIncomplete, 400)
 
 				res.status(200).json({ deleted: await storage.remove({ scope, key }) })
 			} catch (error) {
-				fail(res, error)
+				fail(res, error, copy)
 			}
 		},
 
@@ -128,17 +140,17 @@ export const createExpressStorageHandlers = <
 		 */
 		view: async (req: ExpressishRequest, res: ExpressishResponse) => {
 			try {
-				const scope = param(req, 'scope')
-				const entityId = param(req, 'entityId')
+				const scope = param(req, 'scope', copy)
+				const entityId = param(req, 'entityId', copy)
 				await guard(req, scope, entityId)
 
 				const key = req.query?.key
 				if (typeof key !== 'string' || !key) {
-					throw new StorageRequestError('Solicitud incompleta', 400)
+					throw new StorageRequestError(copy.requestIncomplete, 400)
 				}
 
 				const body = await storage.readStream({ scope, key })
-				const fileName = key.split('/').pop() ?? 'archivo'
+				const fileName = key.split('/').pop() ?? copy.unnamedFile
 				res.setHeader('Content-Type', getMimeType(fileName))
 				res.setHeader(
 					'Content-Disposition',
@@ -162,19 +174,19 @@ export const createExpressStorageHandlers = <
 					return
 				}
 			} catch (error) {
-				fail(res, error)
+				fail(res, error, copy)
 			}
 		},
 
 		signedUrl: async (req: ExpressishRequest, res: ExpressishResponse) => {
 			try {
-				const scope = param(req, 'scope')
-				const entityId = param(req, 'entityId')
+				const scope = param(req, 'scope', copy)
+				const entityId = param(req, 'entityId', copy)
 				await guard(req, scope, entityId)
 
 				const key = req.query?.key
 				if (typeof key !== 'string' || !key) {
-					throw new StorageRequestError('Solicitud incompleta', 400)
+					throw new StorageRequestError(copy.requestIncomplete, 400)
 				}
 
 				const url = await storage.signedUrl({
@@ -184,7 +196,7 @@ export const createExpressStorageHandlers = <
 				})
 				res.status(200).json({ url })
 			} catch (error) {
-				fail(res, error)
+				fail(res, error, copy)
 			}
 		},
 	}

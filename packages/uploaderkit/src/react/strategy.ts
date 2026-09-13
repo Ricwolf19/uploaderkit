@@ -1,3 +1,4 @@
+import { resolveLabels, type UploaderLabels } from '../labels'
 import type { StoredFile } from '../types'
 import type { RemoveStrategy, UploadStrategy } from './types'
 
@@ -16,6 +17,12 @@ export type XhrUploadStrategyOptions = {
 	 * @defaultValue 'same-origin'
 	 */
 	credentials?: RequestCredentials
+	/**
+	 * Copy for the two failures the transport itself words. Pass the same
+	 * object the uploader renders with, or the request that fails speaks a
+	 * different language than the row reporting it.
+	 */
+	labels?: Partial<UploaderLabels>
 }
 
 /**
@@ -30,9 +37,11 @@ export const createXhrUploadStrategy =
 		headers,
 		fieldName = 'file',
 		credentials,
+		labels,
 	}: XhrUploadStrategyOptions): UploadStrategy =>
 	(file, scope, entityId, { onProgress, signal }) =>
 		new Promise<StoredFile>((resolve, reject) => {
+			const copy = resolveLabels(labels)
 			const xhr = new XMLHttpRequest()
 			const url = `${endpoint.replace(/\/$/, '')}/${encodeURIComponent(scope)}/${encodeURIComponent(entityId)}/upload`
 			xhr.open('POST', url)
@@ -57,21 +66,22 @@ export const createXhrUploadStrategy =
 					resolve(xhr.response as StoredFile)
 					return
 				}
-				// The server handler answers { message } in the user's language.
+				// The server handler answers { message } already worded for the
+				// user; the label is only the fallback when it answered nothing.
 				const message =
 					(xhr.response as { message?: string } | null)?.message ??
-					'No se pudo subir el archivo'
+					copy.uploadFailed
 				reject(new Error(message))
 			}
 
 			xhr.onerror = () => {
 				signal.removeEventListener('abort', abort)
-				reject(new Error('No se pudo subir el archivo. Revisa tu conexión'))
+				reject(new Error(copy.uploadNetworkFailed))
 			}
 
 			xhr.onabort = () => {
 				signal.removeEventListener('abort', abort)
-				const error = new Error('Carga cancelada')
+				const error = new Error('Upload cancelled')
 				error.name = 'AbortError'
 				reject(error)
 			}

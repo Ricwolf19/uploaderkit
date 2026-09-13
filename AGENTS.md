@@ -69,8 +69,9 @@ table — or the path resolves in the bundler and fails in Node.
   private scope rides a provider that cannot sign. Deploys fail loudly instead
   of 500ing on the first upload.
 - **Two error families** — `StorageRequestError` carries an HTTP status and a
-  Spanish user-safe message; `ScopeError` is a wiring bug, English, and the
-  framework adapters rethrow it instead of serializing it to the client.
+  user-safe message drawn from labels; `ScopeError` is a wiring bug, English
+  and never localized, and the framework adapters rethrow it instead of
+  serializing it to the client.
 - **Encrypted objects are stored as `application/octet-stream`** so nothing
   ever tries to render ciphertext; `read()` decrypts on the way out.
 - **Compression is canvas re-encode** — `react/compressImage.ts`. Downscale +
@@ -102,11 +103,18 @@ table — or the path resolves in the bundler and fails in Node.
   run it themselves on a confirmed removal, skip it for `keepOnRemove` scopes,
   and always forget the reference (a dangling pointer is worse than an
   orphan). `onRemoveStored` is notification, not responsibility.
-- **User copy flows through `src/labels.ts`** — English `DEFAULT_LABELS`
-  (globalized default), `ES_LABELS` selected once
-  through `UploaderProvider language='es'`, `Partial` override per hook option
-  or component prop on top. A hardcoded user-facing string in a component is a
-  bug, and a new key lands in the type, `DEFAULT_LABELS` **and** `ES_LABELS`.
+- **User copy flows through `src/labels.ts`, on BOTH sides** — English
+  `DEFAULT_LABELS` (globalized default), `ES_LABELS` selected once through
+  `UploaderProvider language='es'`, `Partial` override per hook option or
+  component prop on top. The reach is the whole package, not the components:
+  `validateFile`/`validateForScope` take `labels`, so the rejection the
+  browser shows and the one the API answers are the same string; the
+  transports (`react/strategy.ts`, `react/viewResolver.ts`) take it for the
+  failures they word themselves; `createStorage` takes it once and republishes
+  the resolved object as `storage.labels`, which is where both framework
+  adapters read from — one `labels` therefore covers the round trip. A
+  hardcoded user-facing string anywhere is a bug, and a new key lands in the
+  type, `DEFAULT_LABELS` **and** `ES_LABELS`.
 - **The upload trigger is a three-mode contract** — `ui/controller.ts`
   declares `UiUploadTrigger`: `'select'` (fires on pick — avatars, quick
   replacements), `'submit'` (the form sends via `controllerRef` — any file
@@ -199,10 +207,11 @@ warn for an impossible config are both wrong.
    additionally requires `encryptedUrl`, or `createStorage` throws: without the
    view route its `StoredFile.url` would hand ciphertext to an `<img>`.
 5. **User-facing copy flows through labels — English default, Spanish via
-   `UploaderProvider language='es'`. Dev-facing messages English and
-   actionable.** `StorageRequestError` messages are today Spanish and
-   user-safe; the framework adapters map them to JSON, and rethrow
-   `ScopeError` instead of serializing it.
+   `UploaderProvider language='es'` on the client and `createStorage({ labels })`
+   on the server. Dev-facing messages English and actionable.** No literal
+   reaches a user: validation, transport and HTTP messages all resolve from
+   `UploaderLabels`. The framework adapters map `StorageRequestError` to JSON
+   and rethrow `ScopeError` instead of serializing it.
 6. **The package ships no scopes.** Every destination is declared by the
    consuming app in its own `defineScopes` call.
 7. **The scroll lock is shared by value, not by import.** Every copy of this
@@ -244,4 +253,3 @@ through the trusted publisher (no token in CI).
 | 2026-08-14 | low      | react/@google-cloud/storage are devDeps only for typechecking; depcruise exempts `npm-peer` from the dev-dep rule to allow this                                                                                                                     | `.dependency-cruiser.cjs`    |
 | 2026-08-14 | med      | `dragleave` fires on a wrapper when the pointer enters its own child, so a boolean drag flag flickers. Count depth instead — `Dropzone`, `SlotRow` and the playground's drop-anywhere all do                                                        | `src/ui/Dropzone.tsx`        |
 | 2026-08-14 | med      | A hidden `<input>` inside a clickable wrapper recurses: `input.click()` bubbles back to the wrapper, which calls it again. Browsers cut it short, happy-dom blows the stack. Keep the `stopPropagation` guard                                       | `src/ui/Dropzone.tsx`        |
-| 2026-09-13 | med      | `StorageRequestError` messages are hardcoded Spanish while `DEFAULT_LABELS` is English, so an app that never touches labels still serves Spanish HTTP errors. They bypass the label system entirely — deciding where they belong is open            | `src/server/storage.ts`      |

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { DEFAULT_LABELS, ES_LABELS } from '../labels'
 import {
 	createBlobUrlResolver,
 	createBytesResolver,
@@ -101,7 +102,22 @@ describe('createBytesResolver', () => {
 
 		const resolve = createBytesResolver({ baseUrl: 'https://api.example.com' })
 		await expect(resolve('/storage/s/1/view')).rejects.toThrow(
-			'No se pudo cargar el archivo'
+			DEFAULT_LABELS.readFailed
+		)
+	})
+
+	it('words the failure with the labels it was given', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => ({ ok: false }) as unknown as Response)
+		)
+
+		const resolve = createBytesResolver({
+			baseUrl: 'https://api.example.com',
+			labels: ES_LABELS,
+		})
+		await expect(resolve('/storage/s/1/view')).rejects.toThrow(
+			ES_LABELS.readFailed
 		)
 	})
 })
