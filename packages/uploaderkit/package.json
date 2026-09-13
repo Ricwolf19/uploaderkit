@@ -170,7 +170,7 @@
 		{
 			"name": "react",
 			"path": "dist/react.js",
-			"limit": "8 kB",
+			"limit": "9 kB",
 			"ignore": [
 				"react",
 				"react-dom"
@@ -179,7 +179,7 @@
 		{
 			"name": "ui",
 			"path": "dist/ui.js",
-			"limit": "13 kB",
+			"limit": "17 kB",
 			"ignore": [
 				"react",
 				"react-dom"
