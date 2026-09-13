@@ -1,9 +1,9 @@
 import { Readable } from 'node:stream'
 
-import type { ExtendedScopeRegistry, ScopeConfig } from '../defineScopes'
-import { resolveReplaceMode, resolveScopePrefix } from '../defineScopes'
-import { resolveKey } from '../sanitizeFileName'
+import { resolveReplaceMode, resolveScopePrefix } from '../scopes'
+import { resolveKey } from '../scopes'
 import { assertProviderSupports, ScopeError, validateForScope } from '../scopes'
+import type { ScopeConfig, ScopeRegistry } from '../types'
 import type {
 	CryptoHooks,
 	FileLike,
@@ -28,7 +28,7 @@ export class StorageRequestError extends Error {
 }
 
 export type CreateStorageOptions<T extends Record<string, ScopeConfig>> = {
-	scopes: ExtendedScopeRegistry<T>
+	scopes: ScopeRegistry<T>
 	provider: StreamingStorageProvider
 	/** Required when any scope declares `encrypt`. The app owns the cipher. */
 	crypto?: StreamingCryptoHooks
@@ -114,7 +114,7 @@ export type StorageService<
 		expiresIn?: number
 	}): Promise<string>
 	list(prefix: string): Promise<{ key: string; size: number }[]>
-	scopes: ExtendedScopeRegistry<T>
+	scopes: ScopeRegistry<T>
 }
 
 const toHex = (buffer: ArrayBuffer): string =>

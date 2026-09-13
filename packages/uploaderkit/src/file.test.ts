@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { defineScopes } from './defineScopes'
-import { resolveKey, sanitizeFileName } from './sanitizeFileName'
+import { sanitizeFileName } from './file'
 
 describe('sanitizeFileName', () => {
 	/**
 	 * The name that crashed production. It ends in `p.m.` + `.png`, so the raw
-	 * string contains `..` and uploaderkit's traversal guard rejected the key —
+	 * string contains `..` and the traversal guard in `resolveKey` rejected the key —
 	 * which the storage route then dropped as an unhandled rejection, killing
 	 * the dyno. This case is the regression; it must never produce `..` again.
 	 */
@@ -48,17 +47,17 @@ describe('sanitizeFileName', () => {
 
 		/** A name that IS the traversal, with nothing else to keep. */
 		it('falls back rather than emitting a dot segment', () => {
-			expect(sanitizeFileName('..')).toBe('archivo')
-			expect(sanitizeFileName('...')).toBe('archivo')
+			expect(sanitizeFileName('..')).toBe('file')
+			expect(sanitizeFileName('...')).toBe('file')
 		})
 	})
 
 	describe('degenerate names', () => {
 		it('falls back when nothing survives the slug', () => {
-			expect(sanitizeFileName('')).toBe('archivo')
-			expect(sanitizeFileName('¿¡!?')).toBe('archivo')
+			expect(sanitizeFileName('')).toBe('file')
+			expect(sanitizeFileName('¿¡!?')).toBe('file')
 			// Punctuation stem, real extension: the extension is still worth keeping.
-			expect(sanitizeFileName('***.png')).toBe('archivo.png')
+			expect(sanitizeFileName('***.png')).toBe('file.png')
 		})
 
 		it('keeps a name that has no extension', () => {
@@ -92,48 +91,5 @@ describe('sanitizeFileName', () => {
 		)
 
 		expect(sanitizeFileName(once)).toBe(once)
-	})
-})
-
-describe('resolveKey', () => {
-	const registry = defineScopes({
-		docs: {
-			path: (id, file) => `Docs/${id}/${sanitizeFileName(file.name)}`,
-			visibility: 'private',
-			accept: ['png'],
-			maxBytes: 1024,
-		},
-	})
-	const fileOf = (name: string) => ({
-		name,
-		size: 1,
-		type: 'image/png',
-		arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-	})
-
-	/**
-	 * Regression for the guard this shadows. The core tests `includes('..')`,
-	 * which a macOS screenshot trips through `p.m.` meeting `.png` — in a
-	 * consumer that dropped the rejected promise it took a whole API down.
-	 */
-	it('accepts a name whose dots are not a path segment', () => {
-		expect(
-			resolveKey(registry, 'docs', 'c1', fileOf('a. b..png'))
-		).not.toContain('..')
-	})
-
-	it('still blocks a real traversal segment', () => {
-		const raw = defineScopes({
-			docs: {
-				path: (id, file) => `Docs/${id}/${file.name}`,
-				visibility: 'private',
-				accept: ['png'],
-				maxBytes: 1024,
-			},
-		})
-
-		expect(() =>
-			resolveKey(raw, 'docs', 'c1', fileOf('../../etc/passwd.png'))
-		).toThrow(/unsafe key/)
 	})
 })

@@ -8,8 +8,8 @@ import {
 } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { defineScopes } from '../defineScopes'
 import { MB } from '../index'
+import { defineScopes } from '../scopes'
 import type { StoredFile } from '../types'
 import { AvatarUploader, type AvatarUploaderProps } from './AvatarUploader'
 

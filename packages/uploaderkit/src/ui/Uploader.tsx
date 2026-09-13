@@ -1,10 +1,10 @@
 import { type ReactNode, useEffect, useState } from 'react'
 
-import type { ScopeConfig } from '../defineScopes'
 import type { UseUploaderOptions } from '../react'
 import { useUploader } from '../react'
 import type { RemoveStrategy, UploaderFile } from '../react/types'
 import { useUploaderLabels } from '../react/UploaderProvider'
+import type { ScopeConfig } from '../types'
 import type { StoredFile } from '../types'
 import { warnDev } from '../warn'
 import { cn } from './cn'

@@ -22,6 +22,7 @@ export {
 	getFileExtension,
 	getMimeType,
 	isKnownExtension,
+	sanitizeFileName,
 	toAcceptAttribute,
 } from './file'
 export {
@@ -31,7 +32,16 @@ export {
 	resolveLabels,
 	type UploaderLabels,
 } from './labels'
-export { assertProviderSupports, ScopeError, validateForScope } from './scopes'
+export {
+	assertProviderSupports,
+	defineScopes,
+	hasStableKey,
+	resolveKey,
+	resolveReplaceMode,
+	resolveScopePrefix,
+	ScopeError,
+	validateForScope,
+} from './scopes'
 export type {
 	AudioExtension,
 	CertificateExtension,
@@ -47,6 +57,8 @@ export type {
 	KeyExtension,
 	ProviderCapabilities,
 	PutInput,
+	ReplaceMode,
+	ScopeConfig,
 	ScopeRegistry,
 	SignedUrlOptions,
 	StorageProvider,
@@ -66,21 +78,3 @@ export {
 	validateMagicNumbers,
 	validateSize,
 } from './validation'
-// Declared after the block above on purpose: a later export shadows an
-// earlier one, so `defineScopes` and `ScopeConfig` resolve to the versions
-// that understand `maxFiles` / `replace`. They compose with the base
-// validations rather than reimplementing them (invariant §4.1).
-export {
-	defineScopes,
-	type ExtendedScopeRegistry,
-	hasStableKey,
-	type ReplaceMode,
-	resolveReplaceMode,
-	resolveScopePrefix,
-	type ScopeConfig,
-} from './defineScopes'
-// Same reason: `resolveKey` shadows the one in `./scopes`, whose traversal
-// guard is a substring test and so rejects legitimate names like `… p.m..png`.
-// This one judges by path segment. `sanitizeFileName` is the other half —
-// apply it in your `path()` and the guard never has anything to reject.
-export { resolveKey, sanitizeFileName } from './sanitizeFileName'

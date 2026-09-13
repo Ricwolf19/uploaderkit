@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useRef } from 'react'
 
-import type { ExtendedScopeRegistry, ScopeConfig } from '../defineScopes'
-import { resolveReplaceMode } from '../defineScopes'
 import { getFileExtension, toAcceptAttribute } from '../file'
 import type { UploaderLabels } from '../labels'
+import { resolveReplaceMode } from '../scopes'
 import { ScopeError } from '../scopes'
+import type { ScopeConfig, ScopeRegistry } from '../types'
 import type { FileExtension } from '../types'
 import { warnDev } from '../warn'
 import {
@@ -24,7 +24,7 @@ import {
 } from './useUploader'
 
 export type UseSlottedUploaderOptions<T extends Record<string, ScopeConfig>> = {
-	scopes: ExtendedScopeRegistry<T>
+	scopes: ScopeRegistry<T>
 	scope: keyof T & string
 	entityId: string
 	strategy?: UploadStrategy

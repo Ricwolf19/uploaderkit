@@ -1,10 +1,10 @@
 import { type ReactNode, useEffect, useState } from 'react'
 
-import type { ScopeConfig } from '../defineScopes'
 import type { SlotState, UseSlottedUploaderOptions } from '../react'
 import { useSlottedUploader } from '../react'
 import type { RemoveStrategy } from '../react/types'
 import { useUploaderLabels } from '../react/UploaderProvider'
+import type { ScopeConfig } from '../types'
 import { warnDev } from '../warn'
 import { cn } from './cn'
 import { ConfirmDialog } from './ConfirmDialog'

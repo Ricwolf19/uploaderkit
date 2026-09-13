@@ -3,7 +3,7 @@ import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { MB } from '../constants'
-import { defineScopes, resolveReplaceMode } from '../defineScopes'
+import { defineScopes, resolveReplaceMode } from '../scopes'
 import { ScopeError } from '../scopes'
 import type { StoredFile } from '../types'
 import {

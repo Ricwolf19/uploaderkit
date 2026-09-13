@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import type { ExtendedScopeRegistry, ScopeConfig } from '../defineScopes'
 import type { UploaderLabels } from '../labels'
 import { validateForScope } from '../scopes'
+import type { ScopeConfig, ScopeRegistry } from '../types'
 import type { StoredFile } from '../types'
 import { warnDev } from '../warn'
 import { compressImage } from './compressImage'
@@ -25,7 +25,7 @@ export type RetryOptions = {
 
 export type UseUploaderOptions<T extends Record<string, ScopeConfig>> = {
 	/** The app's registry — the same object the server authorizes against. */
-	scopes: ExtendedScopeRegistry<T>
+	scopes: ScopeRegistry<T>
 	scope: keyof T & string
 	/** Owner of the uploads (customerId, userId, …), forwarded to the strategy. */
 	entityId: string

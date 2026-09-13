@@ -10,9 +10,9 @@ import {
 import { createRef } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { defineScopes } from '../defineScopes'
 import { MB } from '../index'
 import type { SlotDefinition } from '../react'
+import { defineScopes } from '../scopes'
 import type { StoredFile } from '../types'
 import type { UploaderController } from './controller'
 import { SlottedUploader } from './SlottedUploader'
