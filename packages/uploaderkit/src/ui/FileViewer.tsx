@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-import { getMimeType } from '../index'
+import { getMimeType } from '../file'
 import { resolveLabels, type UploaderLabels } from '../labels'
 import { cn } from './cn'
 import { Kbd } from './Kbd'

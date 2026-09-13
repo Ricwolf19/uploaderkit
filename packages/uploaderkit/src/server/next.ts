@@ -1,5 +1,6 @@
-import type { ScopeConfig } from '../index'
-import { getMimeType, ScopeError } from '../index'
+import { getMimeType } from '../file'
+import { ScopeError } from '../scopes'
+import type { ScopeConfig } from '../types'
 import { StorageRequestError, type StorageService } from './storage'
 
 export type NextRouteContext = {

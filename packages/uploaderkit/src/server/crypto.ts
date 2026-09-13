@@ -1,8 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
 
-import type { CryptoHooks } from '../index'
-import { ScopeError } from '../index'
-
+import { ScopeError } from '../scopes'
+import type { CryptoHooks } from '../types'
 const IV_LENGTH = 12
 const TAG_LENGTH = 16
 const KEY_PATTERN = /^[0-9a-fA-F]{64}$/

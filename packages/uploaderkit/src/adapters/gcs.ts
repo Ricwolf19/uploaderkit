@@ -1,7 +1,6 @@
 import type { Bucket } from '@google-cloud/storage'
 
-import type { StorageProvider } from '../index'
-
+import type { StorageProvider } from '../types'
 export type GcsProviderOptions = {
 	/** Objects with `visibility: 'public'` land here and get a direct URL. */
 	publicBucket: Bucket

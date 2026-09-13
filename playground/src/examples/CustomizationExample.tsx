@@ -8,7 +8,7 @@ import { DemoCard } from '../shell/ui'
 
 const strategy = createFakeStrategy({ duration: 1200 })
 
-/** Re-brand by CSS variables — scoped to any container. */
+/** Re-brand by CSS variables: one `:root` override, zero coupling. */
 const violet = {
 	'--color-ui-primary': '#7c3aed',
 	'--color-ui-primary-hover': '#6d28d9',

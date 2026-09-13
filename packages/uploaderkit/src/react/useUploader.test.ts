@@ -2,8 +2,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import type { StoredFile } from '../index'
-import { defineScopes, MB } from '../index'
+import { MB } from '../constants'
+import { defineScopes } from '../scopes'
+import type { StoredFile } from '../types'
 import type { UploadStrategy } from './types'
 import { useUploader } from './useUploader'
 

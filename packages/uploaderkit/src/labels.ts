@@ -2,9 +2,9 @@
  * Every user-facing string the package renders, so no copy is hardcoded
  * inside a component and apps translate or reword without forking.
  *
- * Spanish is the default; `EN_LABELS` ships for apps in English. Hooks take
- * `labels` in their options, components as a prop — always a `Partial`,
- * merged over the default.
+ * Spanish is the default (AGENTS.md §4.5); `EN_LABELS` ships for apps in
+ * English. Hooks take `labels` in their options, components as a prop —
+ * always a `Partial`, merged over the default.
  */
 export type UploaderLabels = {
 	/** Prompt inside the single dropzone of `Uploader` (fine pointers). */

@@ -1,5 +1,4 @@
-import type { StoredFile, UploadStatus } from '../index'
-
+import type { StoredFile, UploadStatus } from '../types'
 /** Signals the strategy receives while a file is in flight. */
 export type UploadStrategyOptions = {
 	/** 0–100. Driven by the transport when it can measure (XHR can). */

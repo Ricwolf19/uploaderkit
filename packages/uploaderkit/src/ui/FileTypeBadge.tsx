@@ -1,4 +1,4 @@
-import { getFileExtension } from '../index'
+import { getFileExtension } from '../file'
 import { cn } from './cn'
 
 export type FileTypeBadgeProps = {

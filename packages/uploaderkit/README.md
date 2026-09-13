@@ -72,7 +72,7 @@ Scopes both sides validate against, a headless uploader with progress / abort / 
 - **Confirmation dialogs built in** — `confirmRemove` / `confirmReplace` gate destructive file actions behind an accessible dialog (focus lands on cancel), and `ConfirmDialog` is exported for app-level use.
 - **Paste and camera capture** — a focused dropzone accepts a pasted screenshot, and `capture` opens the mobile camera directly.
 - **Translatable copy** — every user-facing string flows through a labels object. Spanish by default, `EN_LABELS` included, any language via a partial override.
-- **Rebrandable theme** — the styled layer reads `--color-ui-*` CSS variables, so one `:root` override rebrands every component.
+- **Rebrandable theme** — the styled layer reads `--color-ui-*` CSS variables so one `:root` override rebrands the whole styled layer.
 - **Sizes, icons and motion** — `size='sm' | 'md'` compacts every row and zone, `icon` swaps (or removes) the dropzone glyph, and the whole surface animates: rows fade in, the drag state scales the zone, overlays enter and exit with a transition, the uploading indicator pulses.
 - **Touch-first by default** — on coarse pointers the zone reads as a tap target ("Toca para elegir un archivo") with press feedback instead of advertising a drag nobody can do; `capture` opens the camera directly.
 
@@ -81,7 +81,7 @@ Scopes both sides validate against, a headless uploader with progress / abort / 
 ## Quick Start
 
 ```bash
-npm install uploaderkit react react-dom
+pnpm add uploaderkit react react-dom
 ```
 
 ```ts
@@ -132,7 +132,7 @@ export const storage = createStorage({
 ## Installation
 
 ```bash
-npm install uploaderkit
+pnpm add uploaderkit
 # peer, only if you use /react or /ui
 pnpm add react react-dom
 ```
@@ -574,8 +574,8 @@ Hooks accept the same `labels` option, which covers the messages they emit
 ### Theming
 
 The styled layer reads `--color-ui-*` / `--radius-ui*` CSS variables, declared
-with defaults in `tailwind.css`. Redeclare the ones you care about and the
-whole styled layer follows:
+with defaults in `tailwind.css`. An app rebrands the whole styled layer with
+a single override:
 
 ```css
 :root {
@@ -588,7 +588,8 @@ whole styled layer follows:
 The override scopes like any CSS variable: put it on a wrapper `div` to
 re-brand a single uploader instead of the whole app.
 
-Motion ships with the components: rows animate in (`--animate-ui-fade-in`), the viewer and the confirm dialog fade/scale on
+Motion ships with the components: rows animate in
+(`--animate-ui-fade-in`), the viewer and the confirm dialog fade/scale on
 enter and exit, the drag state lifts the zone and a press compresses it, and
 the slot indicator pulses while uploading. All CSS — nothing to configure,
 `prefers-reduced-motion` friendly to override from the app.

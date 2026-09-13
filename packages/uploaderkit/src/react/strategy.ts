@@ -1,4 +1,4 @@
-import type { StoredFile } from '../index'
+import type { StoredFile } from '../types'
 import type { UploadStrategy } from './types'
 
 export type XhrUploadStrategyOptions = {

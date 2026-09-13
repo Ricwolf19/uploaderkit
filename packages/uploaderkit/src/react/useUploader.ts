@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import type { ScopeConfig, ScopeRegistry, StoredFile } from '../index'
-import { validateForScope } from '../index'
 import { resolveLabels, type UploaderLabels } from '../labels'
+import { validateForScope } from '../scopes'
+import type { ScopeConfig, ScopeRegistry, StoredFile } from '../types'
 import { warnDev } from '../warn'
 import { compressImage } from './compressImage'
 import type { UploaderFile, UploadStrategy } from './types'

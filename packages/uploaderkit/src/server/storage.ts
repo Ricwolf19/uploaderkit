@@ -1,3 +1,9 @@
+import {
+	assertProviderSupports,
+	resolveKey,
+	ScopeError,
+	validateForScope,
+} from '../scopes'
 import type {
 	CryptoHooks,
 	FileLike,
@@ -6,14 +12,7 @@ import type {
 	SignedUrlOptions,
 	StorageProvider,
 	StoredFile,
-} from '../index'
-import {
-	assertProviderSupports,
-	resolveKey,
-	ScopeError,
-	validateForScope,
-} from '../index'
-
+} from '../types'
 /**
  * A request-level failure: bad file, unknown scope name from a URL, missing
  * part. Carries the HTTP status and a message safe to show the user — unlike

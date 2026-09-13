@@ -1,4 +1,4 @@
-import { formatFileSize } from '../index'
+import { formatFileSize } from '../file'
 import { resolveLabels, type UploaderLabels } from '../labels'
 import type { UploaderFile } from '../react'
 import { cn } from './cn'

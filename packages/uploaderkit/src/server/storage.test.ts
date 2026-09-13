@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
 import { createMemoryProvider } from '../adapters/memory'
-import type { CryptoHooks, FileLike } from '../index'
-import { getMimeType, ScopeError } from '../index'
-import { defineScopes, MB } from '../index'
+import { MB } from '../constants'
+import { getMimeType } from '../file'
+import { ScopeError } from '../scopes'
+import { defineScopes } from '../scopes'
+import type { CryptoHooks, FileLike } from '../types'
 import { createStorage, StorageRequestError } from './storage'
 
+// The registry every case below runs against: a public scope with a stable key,
+// a private encrypted one whose key carries the file name, and their
+// entity-level twins — enough shape to exercise replace, sweep and crypto.
 const testScopes = defineScopes({
 	'user-avatar': {
 		path: userId => `Users/${userId}/avatar`,
@@ -13,7 +18,22 @@ const testScopes = defineScopes({
 		accept: ['png', 'jpg', 'jpeg', 'webp'],
 		maxBytes: 5 * MB,
 		category: 'image',
-		overwrite: true,
+		compress: { maxWidth: 512, quality: 0.8, stripExif: true },
+	},
+	'user-documents': {
+		path: (userId, file) => `Users/${userId}/documents/${file.name}`,
+		visibility: 'private',
+		accept: ['pdf'],
+		maxBytes: 20 * MB,
+		category: 'pdf',
+		encrypt: true,
+	},
+	'company-identity': {
+		path: (companyId, file) => `Companies/${companyId}/identity/${file.name}`,
+		visibility: 'public',
+		accept: ['png', 'jpg', 'jpeg', 'webp', 'svg'],
+		maxBytes: 5 * MB,
+		category: 'image',
 	},
 	'company-documents': {
 		path: (companyId, file) => `Companies/${companyId}/documents/${file.name}`,

@@ -1,5 +1,4 @@
-import type { CompressOptions } from '../index'
-
+import type { CompressOptions } from '../types'
 // Formats a canvas can re-encode. GIF would lose animation and SVG would
 // rasterize, so both pass through untouched.
 const COMPRESSIBLE = new Set(['image/jpeg', 'image/png', 'image/webp'])

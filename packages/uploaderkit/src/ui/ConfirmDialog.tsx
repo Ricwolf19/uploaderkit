@@ -22,10 +22,9 @@ export type ConfirmDialogProps = {
 
 /**
  * Second-step gate for destructive file actions — remove a stored file,
- * replace a slot. Same contract as the toolkit's ConfirmDialog: focus lands
- * on **cancel** so a stray Enter never destroys anything, Escape and the
- * backdrop cancel, and `Tab` stays inside. Exported for app-level use around
- * the uploaders' callbacks.
+ * replace a slot. Focus lands on **cancel** so a stray Enter never destroys
+ * anything, Escape and the backdrop cancel, and `Tab` stays inside. Exported
+ * for app-level use around the uploaders' callbacks.
  */
 export const ConfirmDialog = ({
 	open,

@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { createMemoryProvider } from '../adapters/memory'
-import { defineScopes, MB } from '../index'
+import { MB } from '../constants'
+import { defineScopes } from '../scopes'
 import { createExpressStorageHandlers } from './express'
 import { createNextStorageHandlers } from './next'
 import { createStorage } from './storage'

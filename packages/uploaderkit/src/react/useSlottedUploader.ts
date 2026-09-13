@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useRef } from 'react'
 
-import type { FileExtension, ScopeConfig, ScopeRegistry } from '../index'
-import { getFileExtension, ScopeError, toAcceptAttribute } from '../index'
+import { getFileExtension, toAcceptAttribute } from '../file'
 import { resolveLabels, type UploaderLabels } from '../labels'
+import { ScopeError } from '../scopes'
+import type { FileExtension, ScopeConfig, ScopeRegistry } from '../types'
 import { warnDev } from '../warn'
 import {
 	matchSlotByExtension,

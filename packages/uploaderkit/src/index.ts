@@ -5,7 +5,7 @@
  * the contract both sides of an upload agree on, so the browser and the server
  * validate with the same code against the same scope definition.
  *
- * @see AGENTS.md
+ * @see AGENTS.md §1
  */
 
 export {

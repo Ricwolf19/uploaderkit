@@ -1,5 +1,6 @@
-import type { ScopeConfig } from '../index'
-import { fromMulterFile, getMimeType, ScopeError } from '../index'
+import { fromMulterFile, getMimeType } from '../file'
+import { ScopeError } from '../scopes'
+import type { ScopeConfig } from '../types'
 import { StorageRequestError, type StorageService } from './storage'
 
 /**

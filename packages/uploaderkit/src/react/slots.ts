@@ -1,6 +1,5 @@
-import type { FileExtension, StoredFile } from '../index'
-import { getFileExtension } from '../index'
-
+import { getFileExtension } from '../file'
+import type { FileExtension, StoredFile } from '../types'
 /** A named position a single file can fill (letterhead, CSF, acta, …). */
 export type SlotDefinition = {
 	/** Canonical id — becomes the stored file name (`{id}.{ext}`), so the

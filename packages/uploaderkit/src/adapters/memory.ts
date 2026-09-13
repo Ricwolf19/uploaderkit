@@ -1,5 +1,4 @@
-import type { StorageProvider, Visibility } from '../index'
-
+import type { StorageProvider, Visibility } from '../types'
 type StoredObject = {
 	body: Uint8Array
 	contentType: string

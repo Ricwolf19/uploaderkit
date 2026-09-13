@@ -1,9 +1,9 @@
 import { type ReactNode, useMemo, useState } from 'react'
 
-import type { ScopeConfig } from '../index'
 import { resolveLabels } from '../labels'
 import type { SlotState, UseSlottedUploaderOptions } from '../react'
 import { useSlottedUploader } from '../react'
+import type { ScopeConfig } from '../types'
 import { cn } from './cn'
 import { ConfirmDialog } from './ConfirmDialog'
 import { Dropzone } from './Dropzone'

@@ -1,5 +1,6 @@
-import { formatFileSize, type StoredFile } from '../index'
+import { formatFileSize } from '../file'
 import { resolveLabels, type UploaderLabels } from '../labels'
+import type { StoredFile } from '../types'
 import { cn } from './cn'
 import { FileTypeBadge } from './FileTypeBadge'
 

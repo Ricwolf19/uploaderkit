@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { ScopeError } from '../index'
+import { ScopeError } from '../scopes'
 import { createAesGcmCrypto } from './crypto'
 
 const KEY = 'a'.repeat(64)

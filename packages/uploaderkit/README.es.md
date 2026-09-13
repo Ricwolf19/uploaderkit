@@ -72,7 +72,7 @@ Scopes que ambos lados validan, un uploader headless con progreso / abort / comp
 - **Diálogos de confirmación integrados** — `confirmRemove` / `confirmReplace` ponen un segundo paso accesible antes de las acciones destructivas (el foco cae en cancelar), y `ConfirmDialog` se exporta para uso de la app.
 - **Paste y captura de cámara** — la zona con foco acepta un screenshot pegado, y `capture` abre la cámara del móvil directamente.
 - **Copy traducible** — todos los strings visibles fluyen por un objeto de labels. Español por defecto, `EN_LABELS` incluido, cualquier idioma con un override parcial.
-- **Tema re-brandeable** — la capa con estilos lee variables CSS `--color-ui-*`, así un solo override en `:root` re-brandea todos los componentes.
+- **Tema re-brandeable** — la capa con estilos lee variables CSS `--color-ui-*` así un solo override en `:root` re-brandea toda la capa con estilos.
 - **Tamaños, iconos y motion** — `size='sm' | 'md'` compacta cada fila y zona, `icon` cambia (o quita) el glifo de la zona, y toda la superficie anima: las filas hacen fade-in, el drag escala la zona, los overlays entran y salen con transición, el indicador de subida pulsa.
 - **Touch-first por defecto** — en pointers coarse la zona se lee como objetivo de tap ("Toca para elegir un archivo") con feedback de presión, en vez de anunciar un drag que nadie puede hacer; `capture` abre la cámara directo.
 
@@ -81,7 +81,7 @@ Scopes que ambos lados validan, un uploader headless con progreso / abort / comp
 ## Inicio rápido
 
 ```bash
-npm install uploaderkit react react-dom
+pnpm add uploaderkit react react-dom
 ```
 
 ```ts
@@ -132,7 +132,7 @@ export const storage = createStorage({
 ## Instalación
 
 ```bash
-npm install uploaderkit
+pnpm add uploaderkit
 # peer, solo si usas /react o /ui
 pnpm add react react-dom
 ```
@@ -586,8 +586,8 @@ fallida). Ver `UploaderLabels` para la lista completa de keys.
 ### Theming
 
 La capa con estilos lee variables CSS `--color-ui-*` / `--radius-ui*`,
-declaradas con defaults en `tailwind.css`. Redeclara las que te importen y
-toda la capa con estilos las sigue:
+declaradas con defaults en `tailwind.css`. Una app re-brandea toda la capa
+con estilos con un solo override:
 
 ```css
 :root {
