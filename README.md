@@ -21,6 +21,7 @@ import { defineScopes, MB } from 'uploaderkit'
 
 export const scopes = defineScopes({
 	'company-documents': {
+		maxFiles: 10,
 		path: (id, file) => `Companies/${id}/documents/${file.name}`,
 		visibility: 'private',
 		accept: ['pdf'],
@@ -35,33 +36,35 @@ export const scopes = defineScopes({
 		maxBytes: 5 * MB,
 		category: 'image',
 		compress: { maxWidth: 512, quality: 0.8 },
-		overwrite: true,
 	},
 })
 ```
 
-The client derives its `accept` attribute and pre-validates from it. The server
-authorizes and re-validates from it. There is no second definition to forget.
+The client derives its `accept` attribute, its arity and its pre-validation
+from it. The server authorizes, re-validates and decides what an upload
+replaces from it. There is no second definition to forget.
 
 ```ts
 import { validateForScope } from 'uploaderkit'
 
 const result = await validateForScope(scopes, 'company-documents', file)
-if (!result.valid) showError(result.message) // already in the user's language
+if (!result.valid) showError(result.message) // already a user-safe string
 ```
 
 ## What you get
 
-|                           |                                                                                                                                          |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| **Scope registry**        | `defineScopes` — path, visibility, extensions, size, encryption, compression, overwrite. Malformed definitions throw at import time      |
-| **Isomorphic validation** | extension, size, MIME and magic-number checks that run identically in a browser and in Node                                              |
-| **`uploaderkit/react`**   | headless `useUploader` / `useSlottedUploader`: progress, abort, retry with backoff, concurrency cap, compression, manual or auto trigger |
-| **`uploaderkit/server`**  | `createStorage` re-validates server-side, encrypts on demand, signs private URLs; Express and Next App Router adapters included          |
-| **Adapters**              | Google Cloud Storage, any S3-compatible backend (AWS, R2, B2, MinIO, Wasabi) and an in-memory provider for tests                         |
-| **`uploaderkit/ui`**      | styled `Uploader` + `SlottedUploader`, full-screen `FileViewer` with gallery navigation, `ConfirmDialog` — themeable via CSS variables   |
-| **Encrypted scopes**      | the app injects the cipher; a `view` route serves decrypted bytes, and a signed URL can never leak ciphertext                            |
-| **i18n**                  | every user-facing string flows through a labels object — Spanish default, `EN_LABELS` included                                           |
+|                           |                                                                                                                                         |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **Scope registry**        | `defineScopes` — path, visibility, extensions, size, arity, encryption, compression. Malformed definitions throw at import time         |
+| **Isomorphic validation** | extension, size, MIME and magic-number checks that run identically in a browser and in Node                                             |
+| **`uploaderkit/react`**   | headless `useUploader` / `useSlottedUploader`: progress, abort, retry with backoff, concurrency cap, compression, three upload triggers |
+| **`uploaderkit/server`**  | `createStorage` re-validates server-side, encrypts on demand, signs private URLs; Express and Next App Router adapters included         |
+| **Adapters**              | Google Cloud Storage, any S3-compatible backend (AWS, R2, B2, MinIO, Wasabi) and an in-memory provider for tests                        |
+| **`uploaderkit/ui`**      | styled `Uploader` + `SlottedUploader`, full-screen `FileViewer` with gallery navigation, `ConfirmDialog` — themeable via CSS variables  |
+| **Encrypted scopes**      | the app injects the cipher; a `view` route serves decrypted bytes, and a signed URL can never leak ciphertext                           |
+| **`uploaderkit/presets`** | the recipes as components: `AvatarUploader`, `GalleryUploader`, `useDropAnywhere` + `DropAnywhereOverlay`                               |
+| **No orphans**            | a scope's key shape decides what an upload replaces; the server sweeps and reports every key it removed                                 |
+| **i18n**                  | every user-facing string flows through a labels object — English default, Spanish via `<UploaderProvider language='es'>`                |
 
 The core stays **zero-dependency and isomorphic** — no React, no Node
 builtins, no provider SDK. React and the SDKs are optional peers behind their
@@ -83,14 +86,14 @@ pnpm verify:ci # the full gate: lint, secretlint, build, typecheck, test,
 ```
 
 The playground (`playground/`) has a demo per surface — basic, slotted, form
-trigger, retry, avatar, gallery, drop-anywhere — each deep-linkable via
-`?demo=<id>`.
+trigger, retry, avatar, gallery, drop-anywhere, replace modes, read helpers —
+each deep-linkable via `?demo=<id>`.
 
 ## Roadmap
 
 | Version | Adds                                                     |
 | ------- | -------------------------------------------------------- |
-| 1.x     | Checksum dedupe, resumable uploads, presigned direct PUT |
+| 2.x     | Checksum dedupe, resumable uploads, presigned direct PUT |
 
 ## License
 
