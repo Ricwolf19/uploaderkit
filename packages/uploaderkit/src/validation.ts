@@ -1,5 +1,6 @@
 import { MAGIC_NUMBERS } from './constants'
 import { formatFileSize, getFileExtension, isKnownExtension } from './file'
+import { resolveLabels, type UploaderLabels } from './labels'
 import type {
 	FileExtension,
 	FileLike,
@@ -16,32 +17,33 @@ const fail = (
 
 export const validateExtension = (
 	fileName: string,
-	allowed: FileExtension[]
+	allowed: FileExtension[],
+	labels?: Partial<UploaderLabels>
 ): ValidationResult => {
 	if (allowed.length === 0) return ok
 
+	const copy = resolveLabels(labels)
 	const extension = getFileExtension(fileName)
 	if (!extension) {
-		return fail('extension-not-allowed', 'El archivo no tiene extensión')
+		return fail('extension-not-allowed', copy.fileHasNoExtension)
 	}
 	if (!allowed.includes(extension as FileExtension)) {
-		return fail(
-			'extension-not-allowed',
-			`Formato no permitido. Se aceptan: ${allowed.join(', ')}`
-		)
+		return fail('extension-not-allowed', copy.formatNotAllowed(allowed))
 	}
 	return ok
 }
 
 export const validateSize = (
 	size: number,
-	maxBytes: number
+	maxBytes: number,
+	labels?: Partial<UploaderLabels>
 ): ValidationResult => {
-	if (size === 0) return fail('empty-file', 'El archivo está vacío')
+	const copy = resolveLabels(labels)
+	if (size === 0) return fail('empty-file', copy.fileIsEmpty)
 	if (size > maxBytes) {
 		return fail(
 			'too-large',
-			`El archivo pesa ${formatFileSize(size)} y el máximo es ${formatFileSize(maxBytes)}`
+			copy.fileTooLarge(formatFileSize(size), formatFileSize(maxBytes))
 		)
 	}
 	return ok
@@ -53,8 +55,10 @@ export const validateSize = (
  * is not evidence of tampering.
  */
 export const validateMagicNumbers = async (
-	file: FileLike
+	file: FileLike,
+	labels?: Partial<UploaderLabels>
 ): Promise<ValidationResult> => {
+	const copy = resolveLabels(labels)
 	const extension = getFileExtension(file.name)
 	if (!isKnownExtension(extension)) return ok
 
@@ -66,16 +70,13 @@ export const validateMagicNumbers = async (
 		expected.length
 	)
 	if (head.length < expected.length) {
-		return fail('magic-number-mismatch', 'El archivo está incompleto')
+		return fail('magic-number-mismatch', copy.fileIncomplete)
 	}
 
 	const matches = expected.every((byte, index) => head[index] === byte)
 	return matches
 		? ok
-		: fail(
-				'magic-number-mismatch',
-				'El contenido del archivo no corresponde a su extensión'
-			)
+		: fail('magic-number-mismatch', copy.contentDoesNotMatchExtension)
 }
 
 /**
@@ -90,17 +91,18 @@ export const validateFile = async (
 		maxBytes = Infinity,
 		allowedExtensions = [],
 		validateMagicNumbers: checkMagic = false,
+		labels,
 		customValidation,
 	} = options
 
-	const size = validateSize(file.size, maxBytes)
+	const size = validateSize(file.size, maxBytes, labels)
 	if (!size.valid) return size
 
-	const extension = validateExtension(file.name, allowedExtensions)
+	const extension = validateExtension(file.name, allowedExtensions, labels)
 	if (!extension.valid) return extension
 
 	if (checkMagic) {
-		const magic = await validateMagicNumbers(file)
+		const magic = await validateMagicNumbers(file, labels)
 		if (!magic.valid) return magic
 	}
 

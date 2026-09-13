@@ -1,3 +1,7 @@
+/** The core modules that must stay isomorphic — no React, no Node builtins. */
+const CORE =
+	'^packages/uploaderkit/src/(index|constants|file|scopes|types|validation|labels|warn)\\.ts$'
+
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
 	forbidden: [
@@ -28,26 +32,41 @@ module.exports = {
 			name: 'core-stays-isomorphic',
 			severity: 'error',
 			comment:
-				'The core entry must run in a browser AND in Node. Importing react or a node builtin here breaks the single-source validation contract.',
-			from: { path: 'packages/uploaderkit/src' },
+				'The core entry must run in a browser AND in Node. Importing a node builtin here breaks the single-source validation contract. `/server` is the Node side and is exempt.',
+			from: { path: CORE },
 			to: {
 				dependencyTypes: ['core'],
-				path: '^(fs|path|crypto|stream|http|https|os|child_process)$',
+				path: '^(node:)?(fs|path|crypto|stream|http|https|os|child_process)$',
 			},
 		},
 		{
 			name: 'no-react-in-core',
 			severity: 'error',
-			comment: 'The core entry ships to servers; it must not pull React in.',
-			from: { path: 'packages/uploaderkit/src' },
+			comment:
+				'The core entry ships to servers; it must not pull React in. React lives behind the /react and /ui subpaths.',
+			from: { path: CORE },
+			to: { path: '^react' },
+		},
+		{
+			name: 'no-react-in-server',
+			severity: 'error',
+			comment: 'The server layer must never depend on React either.',
+			from: { path: '^packages/uploaderkit/src/(server|adapters)/' },
 			to: { path: '^react' },
 		},
 		{
 			name: 'not-to-dev-dep',
 			severity: 'error',
-			comment: 'A published module must not depend on a devDependency.',
-			from: { path: 'packages/uploaderkit/src', pathNot: '\\.test\\.ts$' },
-			to: { dependencyTypes: ['npm-dev'] },
+			comment:
+				'A published module must not depend on a devDependency. Peers are exempt: react and the provider SDKs are installed as devDeps only so the repo can typecheck.',
+			from: {
+				path: 'packages/uploaderkit/src',
+				pathNot: '\\.test\\.tsx?$',
+			},
+			to: {
+				dependencyTypes: ['npm-dev'],
+				dependencyTypesNot: ['npm-peer'],
+			},
 		},
 	],
 	options: {

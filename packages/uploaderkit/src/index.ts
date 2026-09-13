@@ -5,7 +5,7 @@
  * the contract both sides of an upload agree on, so the browser and the server
  * validate with the same code against the same scope definition.
  *
- * @see AGENTS.md
+ * @see AGENTS.md §1
  */
 
 export {
@@ -22,12 +22,23 @@ export {
 	getFileExtension,
 	getMimeType,
 	isKnownExtension,
+	sanitizeFileName,
 	toAcceptAttribute,
 } from './file'
 export {
+	DEFAULT_LABELS,
+	EN_LABELS,
+	ES_LABELS,
+	resolveLabels,
+	type UploaderLabels,
+} from './labels'
+export {
 	assertProviderSupports,
 	defineScopes,
+	hasStableKey,
 	resolveKey,
+	resolveReplaceMode,
+	resolveScopePrefix,
 	ScopeError,
 	validateForScope,
 } from './scopes'
@@ -46,6 +57,7 @@ export type {
 	KeyExtension,
 	ProviderCapabilities,
 	PutInput,
+	ReplaceMode,
 	ScopeConfig,
 	ScopeRegistry,
 	SignedUrlOptions,

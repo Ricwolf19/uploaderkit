@@ -1,0 +1,16 @@
+uploaderkit
+Copyright (c) 2026 Ricardo Tapia
+
+This product includes software developed by Ricardo Tapia.
+
+================================================================================
+SCOPE OF THE MIT LICENSE
+================================================================================
+
+The MIT License in LICENSE covers the source code of this package.
+
+It does not grant rights over any third-party service this package can talk to
+(Google Cloud Storage, Amazon S3, Cloudflare R2, Backblaze B2, UploadThing, …).
+Using an adapter still requires you to accept that provider's own terms and to
+supply your own credentials. No provider SDK is bundled: every adapter declares
+its SDK as an optional peer dependency.

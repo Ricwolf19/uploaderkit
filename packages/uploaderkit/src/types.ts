@@ -1,3 +1,5 @@
+import type { UploaderLabels } from './labels'
+
 /**
  * Every type in this file must be usable from a browser and from a server.
  * That is what lets one scope definition drive the client's guards and the
@@ -81,6 +83,11 @@ export type ValidationOptions = {
 	maxBytes?: number
 	allowedExtensions?: FileExtension[]
 	validateMagicNumbers?: boolean
+	/**
+	 * Copy for the messages these checks produce. Omitted means English — the
+	 * same rule the rest of the package follows.
+	 */
+	labels?: Partial<UploaderLabels>
 	/** Runs last, only when every built-in check passed. */
 	customValidation?: (file: FileLike) => Promise<ValidationResult>
 }
@@ -105,6 +112,16 @@ export type CompressOptions = {
 }
 
 /**
+ * What an upload does to what the entity already had.
+ *
+ * - `'entity'` — after the put, every other object under the entity's prefix
+ *   is deleted. The scope holds exactly one file and leaves no history.
+ * - `'key'` — only the object at the same key is replaced, siblings stay.
+ * - `false` — nothing is removed; the bucket keeps every version.
+ */
+export type ReplaceMode = 'entity' | 'key' | false
+
+/**
  * A named destination. The single source of truth for where a file lands, who
  * may read it, and what is accepted there.
  */
@@ -124,6 +141,31 @@ export type ScopeConfig = {
 	compress?: CompressOptions
 	/** Replace the object at the same key instead of adding a new one. */
 	overwrite?: boolean
+	/**
+	 * How many files one entity may hold here — on the scope, not on the
+	 * uploader, so the server knows the arity too.
+	 *
+	 * @defaultValue 1
+	 * @see AGENTS.md §3 — "Arity lives on the scope"
+	 */
+	maxFiles?: number
+	/**
+	 * Overrides the derived replace mode. Rarely needed: the default already
+	 * leaves no orphans.
+	 */
+	replace?: ReplaceMode
+	/**
+	 * Objects an `'entity'` replace may delete. Defaults to the folder of the
+	 * resolved key. Set it when that folder is shared with another scope.
+	 */
+	prefix?: (entityId: string) => string
+	/**
+	 * This scope keeps its objects as HISTORY: the server refuses the DELETE
+	 * route for it, so no client — buggy or malicious — can destroy the trail.
+	 * The default is the opposite: removals are expected to delete from
+	 * storage, because a scope with stable keys can never reclaim an orphan.
+	 */
+	keepOnRemove?: boolean
 	/** Documentation-only today; drives lifecycle rules once adapters read it. */
 	retention?: string
 	/** Free-form tags forwarded to the provider when it supports metadata. */

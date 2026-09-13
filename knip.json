@@ -5,6 +5,7 @@
 			"ignoreDependencies": ["@secretlint/secretlint-rule-preset-recommend"],
 			"ignoreBinaries": ["dot"]
 		},
-		"packages/uploaderkit": {}
+		"packages/uploaderkit": {},
+		"playground": {}
 	}
 }

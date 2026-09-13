@@ -21,6 +21,7 @@ import { defineScopes, MB } from 'uploaderkit'
 
 export const scopes = defineScopes({
 	'company-documents': {
+		maxFiles: 10,
 		path: (id, file) => `Companies/${id}/documents/${file.name}`,
 		visibility: 'private',
 		accept: ['pdf'],
@@ -35,43 +36,64 @@ export const scopes = defineScopes({
 		maxBytes: 5 * MB,
 		category: 'image',
 		compress: { maxWidth: 512, quality: 0.8 },
-		overwrite: true,
 	},
 })
 ```
 
-The client derives its `accept` attribute and pre-validates from it. The server
-authorizes and re-validates from it. There is no second definition to forget.
+The client derives its `accept` attribute, its arity and its pre-validation
+from it. The server authorizes, re-validates and decides what an upload
+replaces from it. There is no second definition to forget.
 
 ```ts
 import { validateForScope } from 'uploaderkit'
 
 const result = await validateForScope(scopes, 'company-documents', file)
-if (!result.valid) showError(result.message) // already in the user's language
+if (!result.valid) showError(result.message) // already a user-safe string
 ```
 
-## What you get today
+## What you get
 
-|                           |                                                                                                                                      |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| **Scope registry**        | `defineScopes` — path, visibility, extensions, size, encryption, compression, overwrite. Malformed definitions throw at import time  |
-| **Isomorphic validation** | extension, size, MIME and magic-number checks that run identically in a browser and in Node                                          |
-| **Magic numbers**         | 20 signatures, so an `.exe` renamed to `.pdf` is rejected before it reaches a bucket                                                 |
-| **Provider contract**     | `StorageProvider` with declared `capabilities`; a private scope on a provider that cannot sign URLs fails at boot, not in production |
-| **Path safety**           | keys are checked for traversal before they touch a provider                                                                          |
+|                           |                                                                                                                                         |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **Scope registry**        | `defineScopes` — path, visibility, extensions, size, arity, encryption, compression. Malformed definitions throw at import time         |
+| **Isomorphic validation** | extension, size, MIME and magic-number checks that run identically in a browser and in Node                                             |
+| **`uploaderkit/react`**   | headless `useUploader` / `useSlottedUploader`: progress, abort, retry with backoff, concurrency cap, compression, three upload triggers |
+| **`uploaderkit/server`**  | `createStorage` re-validates server-side, encrypts on demand, signs private URLs; Express and Next App Router adapters included         |
+| **Adapters**              | Google Cloud Storage, any S3-compatible backend (AWS, R2, B2, MinIO, Wasabi) and an in-memory provider for tests                        |
+| **`uploaderkit/ui`**      | styled `Uploader` + `SlottedUploader`, full-screen `FileViewer` with gallery navigation, `ConfirmDialog` — themeable via CSS variables  |
+| **Encrypted scopes**      | the app injects the cipher; a `view` route serves decrypted bytes, and a signed URL can never leak ciphertext                           |
+| **`uploaderkit/presets`** | the recipes as components: `AvatarUploader`, `GalleryUploader`, `useDropAnywhere` + `DropAnywhereOverlay`                               |
+| **No orphans**            | a scope's key shape decides what an upload replaces; the server sweeps and reports every key it removed                                 |
+| **i18n**                  | every user-facing string flows through a labels object — English default, Spanish via `<UploaderProvider language='es'>`                |
 
-Everything above is **zero-dependency and isomorphic**: no React, no Node
-builtins, no provider SDK.
+The core stays **zero-dependency and isomorphic** — no React, no Node
+builtins, no provider SDK. React and the SDKs are optional peers behind their
+own subpaths.
+
+## Documentation
+
+Full docs, every option and copy-paste recipes live in the package README:
+
+**[English](./packages/uploaderkit/README.md)** · **[Español](./packages/uploaderkit/README.es.md)**
+
+## Development
+
+```bash
+pnpm install   # workspace deps
+pnpm dev       # playground on http://localhost:5173 + tsup watch
+pnpm verify:ci # the full gate: lint, secretlint, build, typecheck, test,
+               #   knip, depcruise, size-limit, publint, attw
+```
+
+The playground (`playground/`) has a demo per surface — basic, slotted, form
+trigger, retry, avatar, gallery, drop-anywhere, replace modes, read helpers —
+each deep-linkable via `?demo=<id>`.
 
 ## Roadmap
 
-| Version | Adds                                                                    |
-| ------- | ----------------------------------------------------------------------- |
-| 1.1     | `uploaderkit/react` — headless `useUploader`, abort, progress, previews |
-| 1.2     | `uploaderkit/server` — Fetch-API handler with Express and Next adapters |
-| 1.2     | `uploaderkit/adapters/gcs` and `/s3` (covers S3, R2, B2, MinIO, Wasabi) |
-| 1.3     | `uploaderkit/ui` — styled dropzone and slotted uploader, opt-in         |
-| 1.4     | Client compression + EXIF stripping, checksum dedupe, resumable uploads |
+| Version | Adds                                                     |
+| ------- | -------------------------------------------------------- |
+| 2.x     | Checksum dedupe, resumable uploads, presigned direct PUT |
 
 ## License
 

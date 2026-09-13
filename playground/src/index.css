@@ -1,0 +1,8 @@
+@import 'tailwindcss';
+
+/* The package's theme tokens (colors, radii, motion) and its dist sources.
+   Without this import no `ui-*` utility exists and the components render bare. */
+@import '../../packages/uploaderkit/tailwind.css';
+
+/* The alias resolves the package to source, so its classes come from there. */
+@source '../../packages/uploaderkit/src/**/*.{ts,tsx}';

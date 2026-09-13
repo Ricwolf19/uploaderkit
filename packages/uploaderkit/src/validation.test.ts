@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { MB } from './constants'
 import { formatFileSize, getFileExtension, getMimeType } from './file'
+import { DEFAULT_LABELS, ES_LABELS } from './labels'
 import type { FileLike } from './types'
 import { validateExtension, validateFile, validateSize } from './validation'
 
@@ -150,5 +151,57 @@ describe('validateFile', () => {
 
 		expect(called).toBe(true)
 		expect(result).toMatchObject({ valid: false, code: 'custom' })
+	})
+})
+
+describe('message copy', () => {
+	// The core runs on both sides, so its rejection text is the one string a
+	// user can meet twice — once from the browser, once from the API.
+	it('answers in English by default', () => {
+		const result = validateSize(2 * MB, MB)
+
+		expect(result).toMatchObject({
+			valid: false,
+			message: DEFAULT_LABELS.fileTooLarge(
+				formatFileSize(2 * MB),
+				formatFileSize(MB)
+			),
+		})
+	})
+
+	it('answers with the labels it was handed', () => {
+		const result = validateSize(2 * MB, MB, ES_LABELS)
+
+		expect(result).toMatchObject({
+			valid: false,
+			message: ES_LABELS.fileTooLarge(
+				formatFileSize(2 * MB),
+				formatFileSize(MB)
+			),
+		})
+	})
+
+	it('takes a partial override without losing the rest of the copy', () => {
+		const extension = validateExtension('nota.txt', ['pdf'], {
+			formatNotAllowed: () => 'Only PDFs here',
+		})
+		const empty = validateSize(0, MB, {
+			formatNotAllowed: () => 'Only PDFs here',
+		})
+
+		expect(extension).toMatchObject({ message: 'Only PDFs here' })
+		expect(empty).toMatchObject({ message: DEFAULT_LABELS.fileIsEmpty })
+	})
+
+	it('threads the copy down from validateFile', async () => {
+		const result = await validateFile(fileOf('nota.txt', [], 10), {
+			allowedExtensions: ['pdf'],
+			labels: ES_LABELS,
+		})
+
+		expect(result).toMatchObject({
+			valid: false,
+			message: ES_LABELS.formatNotAllowed(['pdf']),
+		})
 	})
 })

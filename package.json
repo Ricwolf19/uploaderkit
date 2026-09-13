@@ -16,7 +16,7 @@
 	"scripts": {
 		"build": "pnpm --filter uploaderkit build",
 		"build:all": "pnpm -r build",
-		"dev": "pnpm --filter uploaderkit dev",
+		"dev": "pnpm --parallel --filter uploaderkit --filter playground run dev",
 		"docs": "pnpm --filter uploaderkit run docs",
 		"lint": "eslint .",
 		"format": "prettier --write .",
@@ -25,16 +25,20 @@
 		"test": "pnpm -r test",
 		"knip": "knip",
 		"knip:fix": "knip --fix",
-		"depcruise": "depcruise --config .dependency-cruiser.cjs packages/uploaderkit/src",
+		"depcruise": "depcruise --config .dependency-cruiser.cjs packages/uploaderkit/src playground/src",
 		"depcruise:graph": "depcruise --config .dependency-cruiser.cjs --output-type dot packages/uploaderkit/src | dot -T svg > dependency-graph.svg",
 		"verify": "pnpm lint && pnpm build && pnpm typecheck && pnpm test",
-		"verify:ci": "pnpm lint && pnpm exec secretlint --secretlintignore .gitignore \"**/*\" && pnpm build && pnpm typecheck && pnpm test && pnpm knip && pnpm depcruise && pnpm --filter uploaderkit size && pnpm --filter uploaderkit check:publish",
+		"verify:ci": "pnpm lint && pnpm exec secretlint --secretlintignore .gitignore \"**/*\" && pnpm build && pnpm typecheck && pnpm test && pnpm knip && pnpm depcruise && pnpm --filter uploaderkit size && pnpm --filter uploaderkit check:publish && pnpm --filter uploaderkit check:types",
 		"fix": "pnpm format && pnpm lint --fix && pnpm knip:fix",
-		"prepare": "husky && chmod +x .husky/pre-commit .husky/pre-push .husky/commit-msg 2>/dev/null || true"
+		"prepare": "husky && chmod +x .husky/pre-commit .husky/pre-push .husky/commit-msg 2>/dev/null || true",
+		"dev:playground": "pnpm --filter playground dev",
+		"dev:package": "pnpm --filter uploaderkit dev"
 	},
 	"devDependencies": {
+		"@arethetypeswrong/cli": "^0.18.2",
 		"@commitlint/cli": "^21.0.1",
 		"@commitlint/config-conventional": "^21.0.1",
+		"@commitlint/types": "^21.0.1",
 		"@eslint/js": "^9.39.4",
 		"@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
 		"@size-limit/preset-small-lib": "^12.1.0",
