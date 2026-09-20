@@ -13,15 +13,30 @@ Scopes que ambos lados validan, un uploader headless con progreso / abort / comp
 [![Tailwind](https://img.shields.io/badge/tailwindcss-v4-38bdf8.svg)](https://tailwindcss.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6.svg)](https://www.typescriptlang.org/)
 
-**[Documentación](https://thekits.dev/es/uploaderkit)** · **[Playground](https://thekits.dev/es/uploaderkit/playground)**
+**[Documentación](https://thekits.dev/es/uploaderkit)** · **[Playground](https://thekits.dev/es/uploaderkit/playground)** · **[Versiones](https://thekits.dev/es/uploaderkit/versiones)** · **[npm](https://www.npmjs.com/package/uploaderkit)**
 
-[🇬🇧 English](./README.md) | **🇲🇽 Español**
+[English](./README.md) · **Español**
 
 </div>
 
 ---
 
 ## Tabla de contenidos
+
+Cada sección de abajo es también una página con buscador en [thekits.dev](https://thekits.dev/es/uploaderkit), en inglés y español.
+
+| Página de documentación                                                                    | Contiene                                                                                                                      |
+| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| [Vista general](https://thekits.dev/es/uploaderkit)                                        | Características                                                                                                               |
+| [Primeros pasos](https://thekits.dev/es/uploaderkit/docs/getting-started)                  | Inicio rápido, Instalación, Configuración de Tailwind v4                                                                      |
+| [Scopes — el contrato](https://thekits.dev/es/uploaderkit/docs/scopes)                     | Scopes — el contrato, Definir scopes, Replace — nunca dejar un archivo muerto                                                 |
+| [Cliente](https://thekits.dev/es/uploaderkit/docs/client)                                  | Cliente, `useUploader`, Disparo de la subida — `select` vs `manual`, Reintentos y concurrencia, Renombrar a la entrada, y más |
+| [Componentes de UI](https://thekits.dev/es/uploaderkit/docs/ui-components)                 | Componentes de UI, `Uploader`, `SlottedUploader`, Confirmaciones, Vista previa (`FileViewer`), y más                          |
+| [Theming y textos](https://thekits.dev/es/uploaderkit/docs/theming-and-labels)             | Labels — todo el copy es reemplazable, El copy llega más lejos que los componentes, Theming                                   |
+| [Presets](https://thekits.dev/es/uploaderkit/docs/presets)                                 | Presets                                                                                                                       |
+| [Servidor](https://thekits.dev/es/uploaderkit/docs/server)                                 | Servidor, `createStorage`, Qué reemplazó una subida, Lecturas en streaming, Express, y más                                    |
+| [Proveedores de almacenamiento](https://thekits.dev/es/uploaderkit/docs/storage-providers) | Providers de almacenamiento                                                                                                   |
+| [Referencia](https://thekits.dev/es/uploaderkit/docs/reference)                            | Feedback para el desarrollador, Subpath exports, Licencia                                                                     |
 
 - [Características](#características)
 - [Inicio rápido](#inicio-rápido)

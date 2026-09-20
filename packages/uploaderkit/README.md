@@ -13,15 +13,32 @@ Scopes both sides validate against, a headless uploader with progress / abort / 
 [![Tailwind](https://img.shields.io/badge/tailwindcss-v4-38bdf8.svg)](https://tailwindcss.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6.svg)](https://www.typescriptlang.org/)
 
-**[Documentation](https://thekits.dev/uploaderkit)** · **[Playground](https://thekits.dev/uploaderkit/playground)**
+**[Documentation](https://thekits.dev/uploaderkit)** · **[Playground](https://thekits.dev/uploaderkit/playground)** · **[Releases](https://thekits.dev/uploaderkit/releases)** · **[npm](https://www.npmjs.com/package/uploaderkit)**
 
-🌐 **English** | [🇲🇽 Español](./README.es.md)
+**English** · [Español](./README.es.md)
 
 </div>
 
 ---
 
 ## Table of Contents
+
+Every section below is also a searchable page on [thekits.dev](https://thekits.dev/uploaderkit), in English and Spanish.
+
+| Docs page                                                                     | Covers                                                                                                                |
+| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| [Overview](https://thekits.dev/uploaderkit)                                   | Features                                                                                                              |
+| [Getting started](https://thekits.dev/uploaderkit/docs/getting-started)       | Quick Start, Installation, Tailwind v4 Setup                                                                          |
+| [Scopes — the contract](https://thekits.dev/uploaderkit/docs/scopes)          | Scopes — the contract, Defining scopes, Replace — never leave a dead file                                             |
+| [Client](https://thekits.dev/uploaderkit/docs/client)                         | Client, `useUploader`, Upload trigger — `select` vs `manual`, Retry and concurrency, Renaming on the way in, and more |
+| [UI components](https://thekits.dev/uploaderkit/docs/ui-components)           | UI components, `Uploader`, `SlottedUploader`, Confirmations, File preview (`FileViewer`), and more                    |
+| [Theming and labels](https://thekits.dev/uploaderkit/docs/theming-and-labels) | Labels — every string is replaceable, The copy reaches further than the components, Theming                           |
+| [Presets](https://thekits.dev/uploaderkit/docs/presets)                       | Presets                                                                                                               |
+| [Server](https://thekits.dev/uploaderkit/docs/server)                         | Server, `createStorage`, What an upload replaced, Streaming reads, Express, and more                                  |
+| [Storage providers](https://thekits.dev/uploaderkit/docs/storage-providers)   | Storage providers                                                                                                     |
+| [Reference](https://thekits.dev/uploaderkit/docs/reference)                   | Developer feedback, Subpath Exports, License                                                                          |
+
+**In this file**
 
 - [Features](#features)
 - [Quick Start](#quick-start)
