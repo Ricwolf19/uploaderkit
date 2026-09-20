@@ -24,7 +24,7 @@
 		"url": "git+https://github.com/Ricwolf19/uploaderkit.git",
 		"directory": "packages/uploaderkit"
 	},
-	"homepage": "https://github.com/Ricwolf19/uploaderkit#readme",
+	"homepage": "https://thekits.dev/uploaderkit",
 	"bugs": {
 		"url": "https://github.com/Ricwolf19/uploaderkit/issues"
 	},

@@ -223,6 +223,18 @@ warn for an impossible config are both wrong.
    key and the shape are the contract; never make one package import the
    other.
 
+### The READMEs are a published contract
+
+`packages/uploaderkit/README.md` and `README.es.md` are the source of truth for
+[thekits.dev](https://thekits.dev/uploaderkit), which generates its docs pages
+from them at build time and joins Spanish to English **by position**. They must
+stay structurally parallel — same heading count, same depth sequence, no
+duplicate heading text. `src/readme.parity.test.ts` enforces it, so drift fails
+here rather than in a downstream build.
+
+`package.json` `homepage` points at the docs site, which is what npm links from
+the package page.
+
 ## 5. Commands
 
 `pnpm dev` (playground on :5173 + tsup watch; Vite aliases the package to

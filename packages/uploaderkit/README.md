@@ -5,11 +5,15 @@
 **File uploads for React and Node, from one shared contract.**  
 Scopes both sides validate against, a headless uploader with progress / abort / compression, and a server storage service with pluggable providers.
 
+[![npm](https://img.shields.io/npm/v/uploaderkit.svg?color=cb3837&logo=npm)](https://www.npmjs.com/package/uploaderkit)
+[![downloads](https://img.shields.io/npm/dm/uploaderkit.svg?color=cb3837)](https://www.npmjs.com/package/uploaderkit)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-339933.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/react-%5E18%20%7C%7C%20%5E19-61dafb.svg)](https://react.dev/)
 [![Tailwind](https://img.shields.io/badge/tailwindcss-v4-38bdf8.svg)](https://tailwindcss.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6.svg)](https://www.typescriptlang.org/)
+
+**[Documentation](https://thekits.dev/uploaderkit)** · **[Playground](https://thekits.dev/uploaderkit/playground)**
 
 🌐 **English** | [🇲🇽 Español](./README.es.md)
 
